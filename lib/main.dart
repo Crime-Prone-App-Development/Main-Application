@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mainapp/loginpage.dart';
 import 'package:mainapp/otp_verify.dart';
+import 'package:mainapp/police_side/home.dart';
+import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/register.dart';
 
 void main() {
@@ -22,6 +24,8 @@ class MyApp extends StatelessWidget {
               phoneNumber: ModalRoute.of(context)?.settings.arguments as String,
             ),
         '/register': (context) => RegisterPage(),
+        '/home': (context) => homePage(),
+        // '/incident': (context) => incidentReport(),
       },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

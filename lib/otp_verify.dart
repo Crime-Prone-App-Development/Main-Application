@@ -76,7 +76,9 @@ class _OTPPageState extends State<OTPPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushNamed(context, '/home');
+                },
                 child: Text("VERIFY",
                     style: TextStyle(
                         color: Colors.white,
