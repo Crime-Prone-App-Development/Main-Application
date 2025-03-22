@@ -7,6 +7,7 @@ import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/police_side/profile.dart';
 import 'package:mainapp/police_side/scan.dart';
 import 'package:mainapp/police_side/uploadImage.dart';
+import 'package:mainapp/token_helper.dart';
 
 class homePage extends StatefulWidget {
   const homePage({super.key});
@@ -21,6 +22,21 @@ class _homePageState extends State<homePage> {
   bool uploadImage = false;
   bool scan = false;
   bool checkpoint = false;
+
+  late List userData = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeUserData();
+  }
+
+  Future<void> _initializeUserData() async {
+    List data = await TokenHelper.getUserData();
+    setState(() {
+      userData = data; // Update the state with the fetched data
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +197,9 @@ class _homePageState extends State<homePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [Text("Name"), Text("Phone Number")],
+                  children: userData.map<Widget>((data) {
+                    return Text(data.toString());
+                  }).toList(),
                 ),
               ),
             ),
