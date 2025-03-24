@@ -5,11 +5,72 @@ import 'package:mainapp/police_side/home.dart';
 import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/register.dart';
 import './token_helper.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'dart:convert';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  await _connectToSocket(); 
   runApp(AppLoader()); // Show a loader while checking the token
 }
+Future<void> _connectToSocket() async{
+  String? token = await TokenHelper.getToken();
+  // Establish socket connection
+  IO.Socket socket = IO.io('http://192.168.173.155:8080', IO.OptionBuilder()
+      .setTransports(['websocket']) // for Flutter or Dart VM
+      // .disableAutoConnect()  // disable auto-connection
+      .setExtraHeaders({'authorization': "$token"})// optional
+      .build());
+  socket.onConnect((_) {
+    print('Connected to Socket Server');
+  });
+
+  socket.on("selfie_prompt", (msg){
+      print(msg);
+    });
+
+  socket.onDisconnect((_) {
+      print('Disconnected from server');
+  });
+
+  socket.on('locatioLogged', (msg) => {
+    print(msg);
+  });
+  
+  Timer.periodic(Duration(seconds : 4), (timer) async {
+    Position position = await _getCurrentLocation();
+    // Send location data to the server using Socket.IO
+    socket.emit('locationUpdate', {
+      'latitude': position.latitude,
+      'longitude': position.longitude,
+    });
+    print('Background Location: ${position.latitude}, ${position.longitude}');
+  });
+
+}
+
+Future<Position> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw 'Location services are disabled';
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw 'Location permissions are denied';
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw 'Location permissions are permanently denied';
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
 
 class AppLoader extends StatelessWidget {
   @override
