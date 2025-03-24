@@ -1,8 +1,9 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mainapp/police_side/home.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class incidentReport extends StatefulWidget {
   final bool incident;
@@ -24,6 +25,57 @@ class incidentReport extends StatefulWidget {
 class _incidentReportState extends State<incidentReport> {
   File? _image;
   final picker = ImagePicker();
+
+  TextEditingController locationController = TextEditingController();
+  TextEditingController descriptionController = TextEditingController();
+
+  Future<void> _submitReport(BuildContext context) async{
+    final String location = locationController.text;
+    final String description = descriptionController.text;
+
+    // Validate input fields
+    if (location.isEmpty ||description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please fill all fields")),
+      );
+      return;
+    }
+
+    final Map<String, String> requestBody = {
+      // only send the picked images array here in images
+      'images' : '', // array of File(Image.path)
+      'location': location,
+      'description': description,
+    };
+
+    try {
+      // Send a POST request to the backend
+      final response = await http.post(
+        Uri.parse('http://192.168.173.155:8080/api/v1/report'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      // Handle the response
+      if (response.statusCode == 202) {
+        // Registration successful
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Registration successful!")),
+        );
+        Navigator.pop(context); // Navigate back to the previous screen
+      } else {
+        // Registration failed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Registration failed: ${response.body}")),
+        );
+      }
+    } catch (e) {
+      // Handle network or server errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("An error occurred: $e")),
+      );
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -87,7 +139,7 @@ class _incidentReportState extends State<incidentReport> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: TextField(
-              // controller: _locationController,
+              controller: locationController,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: "(Enter Location of Incident)",
@@ -116,6 +168,7 @@ class _incidentReportState extends State<incidentReport> {
           ElevatedButton(
             onPressed: () {
               widget.onUpdateIncident(!widget.incident);
+              _submitReport(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Color(0xff118E13),
