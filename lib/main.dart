@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/admin_side/home.dart';
 import 'package:mainapp/loginpage.dart';
 import 'package:mainapp/otp_verify.dart';
 import 'package:mainapp/police_side/home.dart';
@@ -85,10 +86,10 @@ class AppLoader extends StatelessWidget {
             return Scaffold(
               body: Center(
                 child: CircleAvatar(
-                    backgroundImage:
-                        AssetImage('assets/logos/up_police_logo.png'),
-                    radius: 60,
-                  ),
+                  backgroundImage:
+                      AssetImage('assets/logos/up_police_logo.png'),
+                  radius: 60,
+                ),
               ),
             );
           } else if (snapshot.hasError) {
@@ -99,7 +100,6 @@ class AppLoader extends StatelessWidget {
               ),
             );
           } else {
-      
             final String? token = snapshot.data;
             return MyApp(initialRoute: token != null ? '/home' : '/login');
           }
@@ -110,7 +110,6 @@ class AppLoader extends StatelessWidget {
 }
 
 class MyApp extends StatelessWidget {
-
   final String initialRoute;
   MyApp({super.key, required this.initialRoute});
 
