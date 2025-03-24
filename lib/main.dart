@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/admin_side/home.dart';
 import 'package:mainapp/loginpage.dart';
 import 'package:mainapp/otp_verify.dart';
 import 'package:mainapp/police_side/home.dart';
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       initialRoute: '/',
       routes: {
-        '/': (context) => LoginPage(),
+        '/': (context) => adminHome(),
         '/otp': (context) => OTPPage(
               phoneNumber: ModalRoute.of(context)?.settings.arguments as String,
             ),
