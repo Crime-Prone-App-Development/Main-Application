@@ -36,7 +36,7 @@ Future<void> _connectToSocket() async{
       print('Disconnected from server');
   });
 
-  socket.on('locatioLogged', (msg) => {
+  socket.on('locatioLogged', (msg) {
     print(msg);
   });
   
