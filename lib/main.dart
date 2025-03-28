@@ -10,6 +10,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:convert';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import 'admin_side/home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +20,7 @@ void main() async {
 Future<void> _connectToSocket() async{
   String? token = await TokenHelper.getToken();
   // Establish socket connection
-  IO.Socket socket = IO.io('http://192.168.173.155:8080', IO.OptionBuilder()
+  IO.Socket socket = IO.io('https://patrollingappbackend.onrender.com', IO.OptionBuilder()
       .setTransports(['websocket']) // for Flutter or Dart VM
       // .disableAutoConnect()  // disable auto-connection
       .setExtraHeaders({'authorization': "$token"})// optional
@@ -79,8 +80,8 @@ class AppLoader extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: FutureBuilder<String?>(
-        future: TokenHelper.getToken(), // Check for token
+      home: FutureBuilder<List<String?>>(
+        future: TokenHelper.getUserData(), // Check for token
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Show a loader while waiting for the token check
@@ -101,8 +102,8 @@ class AppLoader extends StatelessWidget {
               ),
             );
           } else {
-            final String? token = snapshot.data;
-            return MyApp(initialRoute: token != null ? '/home' : '/login');
+            final List<String?>? userInfo = snapshot.data;
+            return MyApp(initialRoute: userInfo![0] != null ? userInfo[4] != 'ADMIN' ? '/home' : '/adminHome' : '/login');
           }
         },
       ),
@@ -127,6 +128,7 @@ class MyApp extends StatelessWidget {
         //     ),
         '/register': (context) => RegisterPage(),
         '/home': (context) => homePage(),
+        '/adminHome' : (context) => adminHome(),
         // '/incident': (context) => incidentReport(),
       },
       theme: ThemeData(
