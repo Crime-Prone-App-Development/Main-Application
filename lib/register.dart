@@ -46,7 +46,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       // Send a POST request to the backend
       final response = await http.post(
-        Uri.parse('http://192.168.173.155:8080/api/v1/auth/register'),
+        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
       );

@@ -8,7 +8,7 @@ import 'package:mainapp/police_side/profile.dart';
 import 'package:mainapp/police_side/scan.dart';
 import 'package:mainapp/police_side/uploadImage.dart';
 import 'package:mainapp/token_helper.dart';
-
+import 'assignmentPage.dart';
 class homePage extends StatefulWidget {
   const homePage({super.key});
 
@@ -195,53 +195,55 @@ class _homePageState extends State<homePage> {
               child: Padding(
                 padding: const EdgeInsets.only(left: 8.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: userData.map<Widget>((data) {
-                    return Text(data.toString());
-                  }).toList(),
-                ),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Text(userData[2]), Text(userData[3])]),
               ),
             ),
           ),
-        ),
+        )
       ],
     );
   }
 
   Widget _buildShiftCard() {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Color(0xff7bb4f6),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 5,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: const ListTile(
-        leading: Icon(
-          Icons.access_time,
-          size: 45,
-        ),
-        title: Text("SHIFT: 12:00 AM - 8:00 AM"),
-        subtitle: Row(
-          children: [
-            Text(
-              "IN-TIME: 12:00 AM",
-              style: TextStyle(fontSize: 12),
-            ),
-            SizedBox(width: 20),
-            Text(
-              "OUT-TIME: 8:00 AM",
-              style: TextStyle(fontSize: 12),
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 5,
+              spreadRadius: 2,
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10.0),
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(Icons.assignment, color: Colors.black),
+                title: Text(
+                  "Assignments",
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                ),
+                trailing: IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AssignmentPage()),
+                      );
+                    },
+                    icon: Icon(Icons.arrow_forward_ios)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -363,3 +365,106 @@ class _homePageState extends State<homePage> {
     );
   }
 }
+
+// class PerfectHeightCard extends StatelessWidget {
+//   final String title;
+//   final String areaName;
+//   final TimeOfDay startsAt;
+//   final TimeOfDay endsAt;
+
+//   const PerfectHeightCard({
+//     super.key,
+//     required this.title,
+//     required this.areaName,
+//     required this.startsAt,
+//     required this.endsAt,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+//       child: Card(
+//         elevation: 2,
+//         margin: EdgeInsets.zero, // Remove card's default margin
+//         shape: RoundedRectangleBorder(
+//           borderRadius: BorderRadius.circular(10),
+//         ),
+//         child: ConstrainedBox(
+//           constraints: const BoxConstraints(
+//             minWidth: double.infinity, // Full width
+//             maxWidth: double.infinity,
+//           ),
+//           child: Padding(
+//             padding: const EdgeInsets.all(16.0),
+//             child: IntrinsicHeight(
+//               child: Column(
+//                 mainAxisSize: MainAxisSize.min, // Crucial for height
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   // Title and Time
+//                   Row(
+//                     children: [
+//                       Expanded(
+//                         child: Text(
+//                           title,
+//                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
+//                             fontWeight: FontWeight.w600,
+//                             color: Colors.blue[800],
+//                           ),
+//                         ),
+//                       ),
+//                       _buildTimeBadge(context),
+//                     ],
+//                   ),
+//                   const SizedBox(height: 12),
+                  
+//                   // Location
+//                   Row(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
+//                       const SizedBox(width: 8),
+//                       Expanded(
+//                         child: Text(
+//                           areaName,
+//                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+//                             color: Colors.grey[800],
+//                           ),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildTimeBadge(BuildContext context) {
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+//       decoration: BoxDecoration(
+//         color: Colors.blue[50],
+//         borderRadius: BorderRadius.circular(8),
+//       ),
+//       child: Text(
+//         '${_formatTime(startsAt)} - ${_formatTime(endsAt)}',
+//         style: Theme.of(context).textTheme.labelMedium?.copyWith(
+//           fontWeight: FontWeight.w600,
+//           color: Colors.blue[800],
+//         ),
+//       ),
+//     );
+//   }
+
+//   String _formatTime(TimeOfDay time) {
+//     final hour = time.hourOfPeriod;
+//     final minute = time.minute.toString().padLeft(2, '0');
+//     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+//     return '$hour:$minute $period';
+//   }
+// }

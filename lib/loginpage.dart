@@ -1,3 +1,5 @@
+import 'dart:ffi' hide Size;
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,6 +16,8 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController phoneController = TextEditingController();
 
   TextEditingController passwordController = TextEditingController();
+
+  bool homePageLoading = false;
 
   Future<void> _login(BuildContext context) async {
 
@@ -38,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.173.155:8080/api/v1/auth/login'),
+        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/auth/login'),
         body: json.encode(requestBody),
         headers: {'Content-Type': 'application/json'},
       );
@@ -49,22 +53,32 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Login Successful')));
-        print(jsonDecode(response.body));
+        // print(jsonDecode(response.body));
 
         String? token = responseData['data']['Token'];
         String? userId = responseData['data']['user']['_id'];
         String? username = responseData['data']['user']['name'];
         String? userPhone = responseData['data']['user']['phoneNumber'];
+        String? userRole = responseData['data']['user']['role'];
 
-        if (token != null  && userId != null && username != null && userPhone != null) {
-          await TokenHelper.saveToken(token : token, userId: userId, userName: username, userPhone: userPhone);
+        if (token != null  && userId != null && username != null && userPhone != null && userRole != null) {
+          setState(() {
+            homePageLoading = true;
+          });
+          await TokenHelper.saveToken(token : token, userId: userId, userName: username, userPhone: userPhone, userRole: userRole);
+
+          setState(() {
+            homePageLoading = false;
+          });
+
         } else {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Login Failed ')));
           return;
         }
-        Navigator.pushReplacementNamed(context, '/home');
+
+        homePageLoading ? CircularProgressIndicator() : Navigator.pushReplacementNamed(context, userRole == 'ADMIN' ? '/adminHome' : '/home');
       } else {
         // If the server did not return a 200 OK response,
         // show an error message.
