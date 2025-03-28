@@ -1,15 +1,77 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/admin_side/home.dart';
 import 'package:mainapp/loginpage.dart';
 import 'package:mainapp/otp_verify.dart';
 import 'package:mainapp/police_side/home.dart';
 import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/register.dart';
 import './token_helper.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'dart:convert';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  await _connectToSocket(); 
   runApp(AppLoader()); // Show a loader while checking the token
 }
+Future<void> _connectToSocket() async{
+  String? token = await TokenHelper.getToken();
+  // Establish socket connection
+  IO.Socket socket = IO.io('http://192.168.173.155:8080', IO.OptionBuilder()
+      .setTransports(['websocket']) // for Flutter or Dart VM
+      // .disableAutoConnect()  // disable auto-connection
+      .setExtraHeaders({'authorization': "$token"})// optional
+      .build());
+  socket.onConnect((_) {
+    print('Connected to Socket Server');
+  });
+
+  socket.on("selfie_prompt", (msg){
+      print(msg);
+    });
+
+  socket.onDisconnect((_) {
+      print('Disconnected from server');
+  });
+
+  socket.on('locatioLogged', (msg) => {
+    print(msg);
+  });
+  
+  Timer.periodic(Duration(seconds : 4), (timer) async {
+    Position position = await _getCurrentLocation();
+    // Send location data to the server using Socket.IO
+    socket.emit('locationUpdate', {
+      'latitude': position.latitude,
+      'longitude': position.longitude,
+    });
+    print('Background Location: ${position.latitude}, ${position.longitude}');
+  });
+
+}
+
+Future<Position> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw 'Location services are disabled';
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw 'Location permissions are denied';
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw 'Location permissions are permanently denied';
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
 
 class AppLoader extends StatelessWidget {
   @override
@@ -24,10 +86,10 @@ class AppLoader extends StatelessWidget {
             return Scaffold(
               body: Center(
                 child: CircleAvatar(
-                    backgroundImage:
-                        AssetImage('assets/logos/up_police_logo.png'),
-                    radius: 60,
-                  ),
+                  backgroundImage:
+                      AssetImage('assets/logos/up_police_logo.png'),
+                  radius: 60,
+                ),
               ),
             );
           } else if (snapshot.hasError) {
@@ -38,7 +100,6 @@ class AppLoader extends StatelessWidget {
               ),
             );
           } else {
-      
             final String? token = snapshot.data;
             return MyApp(initialRoute: token != null ? '/home' : '/login');
           }
@@ -49,7 +110,6 @@ class AppLoader extends StatelessWidget {
 }
 
 class MyApp extends StatelessWidget {
-
   final String initialRoute;
   MyApp({super.key, required this.initialRoute});
 
