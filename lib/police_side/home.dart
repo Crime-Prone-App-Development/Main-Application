@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mainapp/police_side/appbar.dart';
 import 'package:mainapp/police_side/checkpoint.dart';
 import 'package:mainapp/police_side/history.dart';
 import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/police_side/profile.dart';
+import 'package:mainapp/police_side/report.dart';
 import 'package:mainapp/police_side/scan.dart';
 import 'package:mainapp/police_side/uploadImage.dart';
 import 'package:mainapp/token_helper.dart';
 import 'assignmentPage.dart';
+
 class homePage extends StatefulWidget {
   const homePage({super.key});
 
@@ -77,7 +80,7 @@ class _homePageState extends State<homePage> {
       ),
       body: Column(
         children: [
-          _buildAppBar(),
+          Appbar0(),
           SizedBox(height: 20),
           Expanded(
             child: SingleChildScrollView(
@@ -130,9 +133,9 @@ class _homePageState extends State<homePage> {
                     ? CheckpointsPage()
                     : home();
       case 1:
-        return profilepage();
+        return ProfilePage();
       case 2:
-        return historyPage();
+        return HistoryPage();
 
       default:
         return home();
@@ -151,63 +154,7 @@ class _homePageState extends State<homePage> {
     );
   }
 
-  Widget _buildAppBar() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          color: Color(0xffbbdeff),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundImage:
-                        AssetImage('assets/logos/up_police_logo.png'),
-                    radius: 30,
-                  ),
-                  const SizedBox(width: 10),
-                ],
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.notifications,
-                  size: 45,
-                  color: Colors.black,
-                ),
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 20),
-        Container(
-          height: 80,
-          width: double.infinity,
-          color: Color(0xff1b0573),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8.0, bottom: 8),
-            child: Container(
-              color: Colors.white,
-              height: 40,
-              width: double.infinity,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [Text(userData[2]), Text(userData[3])]),
-              ),
-            ),
-          ),
-        )
-      ],
-    );
-  }
-
   Widget _buildShiftCard() {
-
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Container(
@@ -274,13 +221,23 @@ class _homePageState extends State<homePage> {
                   "Total Checkpoints (2)",
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                 ),
+                // In your ListTile's trailing button:
                 trailing: IconButton(
                     onPressed: () {
-                      setState(() {
-                        checkpoint = true;
-                      });
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => CheckpointsPage()),
+                      );
                     },
                     icon: Icon(Icons.arrow_forward_ios)),
+                // trailing: IconButton(
+                //     onPressed: () {
+                //       setState(() {
+                //         checkpoint = true;
+                //       });
+                //     },
+                //     icon: Icon(Icons.arrow_forward_ios)),
               ),
               ListTile(
                 leading: Icon(Icons.check_circle, color: Colors.green),
@@ -342,6 +299,7 @@ class _homePageState extends State<homePage> {
                   "Panic Button",
                   style: TextStyle(fontSize: 20, color: Colors.black),
                 )),
+            SizedBox(height: 10),
             ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -360,7 +318,26 @@ class _homePageState extends State<homePage> {
                   style: TextStyle(fontSize: 20, color: Colors.black),
                 ))
           ],
-        )
+        ),
+        SizedBox(height: 10),
+        ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DailyReportPage()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color.fromARGB(255, 16, 213, 85),
+              minimumSize: Size(370, 45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              "Incident Report",
+              style: TextStyle(fontSize: 20, color: Colors.black),
+            ))
       ],
     );
   }
@@ -418,7 +395,7 @@ class _homePageState extends State<homePage> {
 //                     ],
 //                   ),
 //                   const SizedBox(height: 12),
-                  
+
 //                   // Location
 //                   Row(
 //                     crossAxisAlignment: CrossAxisAlignment.start,
