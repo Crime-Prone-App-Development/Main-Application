@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mainapp/police_side/appbar.dart';
 import 'package:mainapp/police_side/checkpoint.dart';
 import 'package:mainapp/police_side/history.dart';
 import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/police_side/profile.dart';
+import 'package:mainapp/police_side/report.dart';
 import 'package:mainapp/police_side/scan.dart';
 import 'package:mainapp/police_side/uploadImage.dart';
 import 'package:mainapp/token_helper.dart';
 import 'assignmentPage.dart';
+
 class homePage extends StatefulWidget {
   const homePage({super.key});
 
@@ -77,7 +80,7 @@ class _homePageState extends State<homePage> {
       ),
       body: Column(
         children: [
-          _buildAppBar(),
+          Appbar0(),
           SizedBox(height: 20),
           Expanded(
             child: SingleChildScrollView(
@@ -130,9 +133,9 @@ class _homePageState extends State<homePage> {
                     ? CheckpointsPage()
                     : home();
       case 1:
-        return profilepage();
+        return ProfilePage();
       case 2:
-        return historyPage();
+        return HistoryPage();
 
       default:
         return home();
@@ -208,7 +211,6 @@ class _homePageState extends State<homePage> {
   }
 
   Widget _buildShiftCard() {
-
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Container(
@@ -275,13 +277,23 @@ class _homePageState extends State<homePage> {
                   "Total Checkpoints (2)",
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                 ),
+                // In your ListTile's trailing button:
                 trailing: IconButton(
                     onPressed: () {
-                      setState(() {
-                        checkpoint = true;
-                      });
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => CheckpointsPage()),
+                      );
                     },
                     icon: Icon(Icons.arrow_forward_ios)),
+                // trailing: IconButton(
+                //     onPressed: () {
+                //       setState(() {
+                //         checkpoint = true;
+                //       });
+                //     },
+                //     icon: Icon(Icons.arrow_forward_ios)),
               ),
               ListTile(
                 leading: Icon(Icons.check_circle, color: Colors.green),
@@ -343,6 +355,7 @@ class _homePageState extends State<homePage> {
                   "Panic Button",
                   style: TextStyle(fontSize: 20, color: Colors.black),
                 )),
+            SizedBox(height: 10),
             ElevatedButton(
                 onPressed: () {
                   setState(() {
@@ -361,7 +374,26 @@ class _homePageState extends State<homePage> {
                   style: TextStyle(fontSize: 20, color: Colors.black),
                 ))
           ],
-        )
+        ),
+        SizedBox(height: 10),
+        ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DailyReportPage()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color.fromARGB(255, 16, 213, 85),
+              minimumSize: Size(370, 45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              "Incident Report",
+              style: TextStyle(fontSize: 20, color: Colors.black),
+            ))
       ],
     );
   }
@@ -419,7 +451,7 @@ class _homePageState extends State<homePage> {
 //                     ],
 //                   ),
 //                   const SizedBox(height: 12),
-                  
+
 //                   // Location
 //                   Row(
 //                     crossAxisAlignment: CrossAxisAlignment.start,
