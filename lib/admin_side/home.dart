@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
-
+import '../token_helper.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
+import './officersTable.dart';
+import 'assign.dart';
 class adminHome extends StatefulWidget {
   @override
   _adminHomeState createState() => _adminHomeState();
@@ -8,6 +13,8 @@ class adminHome extends StatefulWidget {
 class _adminHomeState extends State<adminHome> {
   bool _isSidebarOpen = false;
   final double _sidebarWidth = 200.0;
+  List<dynamic> allReports = [];
+  bool reportsLoaded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -99,25 +106,31 @@ class _adminHomeState extends State<adminHome> {
       child: ListView(
         padding: EdgeInsets.only(top: 20, left: 8),
         children: [
-          _buildMenuItem('Dashboard', Icons.dashboard),
-          _buildMenuItem('Patrol Routes', Icons.map),
-          _buildMenuItem('Police Officers', Icons.people),
-          _buildMenuItem('Reports', Icons.assignment),
-          _buildMenuItem('Alerts', Icons.warning),
-          _buildMenuItem('Checkpoints', Icons.flag),
-          _buildMenuItem('Settings', Icons.settings),
+          _buildMenuItem('Dashboard', Icons.dashboard, Placeholder()),
+          _buildMenuItem('Patrol Routes', Icons.map, Placeholder()),
+          _buildMenuItem('Assign Police Officers', Icons.people, AdminApp()),
+          _buildMenuItem('Reports', Icons.assignment, Placeholder()),
+          _buildMenuItem('Alerts', Icons.warning, Placeholder()),
+          _buildMenuItem('Checkpoints', Icons.flag, Placeholder()),
+          _buildMenuItem('Settings', Icons.settings, Placeholder()),
         ],
       ),
     );
   }
 
-  Widget _buildMenuItem(String title, IconData icon) {
+  Widget _buildMenuItem(String title, IconData icon, Widget destinationWidget) {
     return ListTile(
       leading: Icon(icon, size: 25),
       title: Text(title, style: TextStyle(fontSize: 16)),
       contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       dense: true,
-      onTap: () {},
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => destinationWidget),
+        );
+      },
     );
   }
 
@@ -437,4 +450,32 @@ class _adminHomeState extends State<adminHome> {
       ),
     );
   }
+
+  Future<void> fetchReport(BuildContext context) async {
+    String? token = await TokenHelper.getToken();
+    try {
+      final response = await http.get(
+        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/report'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token}'
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        setState(() {
+          allReports = responseData['data'] ?? [];
+          reportsLoaded = true;
+        });
+        print(responseData);
+      }
+    } catch (e) {
+      // Handle any errors that occur during the request
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred. Please try again.')),
+      );
+    }
+  }
+
 }

@@ -164,7 +164,7 @@ class _homePageState extends State<homePage> {
                 children: [
                   CircleAvatar(
                     backgroundImage:
-                        AssetImage('assets/logos/up_police_logo.png'),
+                        AssetImage('assets/logos/up_police_logo.jpeg'),
                     radius: 30,
                   ),
                   const SizedBox(width: 10),
@@ -197,7 +197,8 @@ class _homePageState extends State<homePage> {
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [Text(userData[2]), Text(userData[3])]),
+                    children: userData.isEmpty ? [Text("N/A"), Text("N/A")] :
+                    [Text(userData[2]), Text(userData[3])]),
               ),
             ),
           ),

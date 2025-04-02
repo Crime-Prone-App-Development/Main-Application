@@ -1,4 +1,4 @@
-import 'dart:ffi' hide Size;
+// import 'dart:ffi' hide Size;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -107,7 +107,7 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   SizedBox(height: 40),
-                  Image.asset('assets/logos/up_police_logo.png',
+                  Image.asset('assets/logos/up_police_logo.jpeg',
                       height: 300), // Replace with correct path
                   SizedBox(height: 40),
                   Text(
