@@ -37,6 +37,7 @@ Future<void> _connectToSocket() async{
   });
 
   socket.on('locatioLogged', (msg) {
+
     print(msg);
   });
   
