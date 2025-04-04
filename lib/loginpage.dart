@@ -89,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       // Handle any errors that occur during the request
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred. Please try again.')),
+        SnackBar(content: Text('An error occurred. Please try again. $e')),
       );
     }
     }

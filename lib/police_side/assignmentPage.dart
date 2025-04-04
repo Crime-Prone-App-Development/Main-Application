@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:mainapp/token_helper.dart';
+import 'package:intl/intl.dart';
 
 class AssignmentPage extends StatefulWidget {
   const AssignmentPage({Key? key}) : super(key: key);
@@ -23,146 +24,176 @@ class _AssignmentPageState extends State<AssignmentPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: const Text('Assignment Page'),
-        ),
-        body: SingleChildScrollView(
-          child: !AssignmentLoaded
-              ?  Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Center(  // <-- Ensures the loader is centered
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min, // Prevents Column from expanding
-                          children: [
-                            CircularProgressIndicator(),  // Loading spinner
-                            SizedBox(height: 16),  // Spacing between spinner and text
-                            Text("Loading assignments..."),  // Loading text
-                          ],
-                        ),
-                      ),
-              )
-              : Column(
-                  children: Assignments.isEmpty
-                      ? [Text("No Asssignments Alloted")]
-                      : Assignments.map<Widget>((element) {
-                          print(element['area']);
-                          return _modifiedCard(
-                              title: 'Assignment',
-                              areaName: element['area']["name"] ?? '',
-                              startsAt: _parseTime(
-                                  element['startsAt']?.toString() ?? ''),
-                              endsAt: _parseTime(
-                                  element['endsAt']?.toString() ?? ''),
-                              isActive:
-                                  isPastEndTime(element['endsAt'].toString()));
-                        }).toList(),
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Assignments'),
+    ),
+    body: SingleChildScrollView(
+      child: !AssignmentLoaded
+          ? Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      "Loading assignments...",
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
                 ),
-        ));
-  }
-
-  Widget _modifiedCard(
-      {title, areaName, startsAt, endsAt, bool isActive = false}) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 5,
-              spreadRadius: 2,
+              ),
+            )
+          : Column(
+              children: Assignments.isEmpty
+                  ? [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          "No Assignments Allocated",
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      )
+                    ]
+                  : Assignments.map<Widget>((element) {
+                      final startDate = DateTime.tryParse(element['startsAt']?.toString() ?? '');
+                      final endDate = DateTime.tryParse(element['endsAt']?.toString() ?? '');
+                      
+                      return _modifiedCard(
+                        title: 'Assignment',
+                        areaName: element['area']["name"] ?? '',
+                        startDate: startDate,
+                        endDate: endDate,
+                        isActive: isPastEndTime(element['endsAt'].toString()),
+                      );
+                    }).toList(),
             ),
+    ),
+  );
+}
+
+Widget _modifiedCard({
+  required String title,
+  required String areaName,
+  required DateTime? startDate,
+  required DateTime? endDate,
+  bool isActive = false,
+}) {
+  return Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title and Status
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[800],
+                        ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.green[50] : Colors.red[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isActive ? Colors.green : Colors.red,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    isActive ? 'Active' : 'Inactive',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: isActive ? Colors.green[800] : Colors.red[800],
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Date and Time Badge
+            
+            const SizedBox(height: 12),
+
+            // Location
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    areaName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[800],
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (startDate != null && endDate != null) 
+              _buildDateTimeBadge(startDate, endDate),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title and Status
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue[800],
-                          ),
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isActive ? Colors.green[50] : Colors.red[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isActive ? Colors.green : Colors.red,
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(
-                      isActive ? 'Active' : 'Inactive',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color:
-                                isActive ? Colors.green[800] : Colors.red[800],
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+      ),
+    ),
+  );
+}
 
-              // Time Badge
-              _buildTimeBadge(startsAt, endsAt),
-              const SizedBox(height: 12),
+Widget _buildDateTimeBadge(DateTime startsAt, DateTime endsAt) {
+  final isSameDay = startsAt.year == endsAt.year &&
+      startsAt.month == endsAt.month &&
+      startsAt.day == endsAt.day;
 
-              // Location
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      areaName,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[800],
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  final dateText = isSameDay
+      ? DateFormat('MMM d, yyyy').format(startsAt)
+      : '${DateFormat('MMM d').format(startsAt)} - ${DateFormat('MMM d, yyyy').format(endsAt)}';
+
+  final startTime = DateFormat('h:mm a').format(startsAt);
+  final endTime = DateFormat('h:mm a').format(endsAt);
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.blue[50],
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.blue[100] ?? Colors.blue, width: 1),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.access_time, size: 16, color: Colors.blue[800]),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            '$dateText • $startTime - $endTime',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue[800],
+                ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTimeBadge(startsAt, endsAt) {
-    // TimeOfDay start = TimeOfDay.fromDateTime(DateTime.parse(startsAt.split(' ')))
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        '${_formatTime(startsAt)} - ${_formatTime(endsAt)}',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.blue[800],
-            ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 
   TimeOfDay _parseTime(String timeString) {
     try {

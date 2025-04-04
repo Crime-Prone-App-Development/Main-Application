@@ -5,6 +5,12 @@ import 'dart:convert';
 import 'dart:async';
 import './officersTable.dart';
 import 'assign.dart';
+import 'package:intl/intl.dart';
+import 'map_screen.dart';
+// import './reportsDashboard.dart';
+
+import 'package:cached_network_image/cached_network_image.dart';
+
 class adminHome extends StatefulWidget {
   @override
   _adminHomeState createState() => _adminHomeState();
@@ -15,6 +21,11 @@ class _adminHomeState extends State<adminHome> {
   final double _sidebarWidth = 200.0;
   List<dynamic> allReports = [];
   bool reportsLoaded = false;
+  @override
+  void initState() {
+    super.initState();
+    fetchReport(context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,8 +138,7 @@ class _adminHomeState extends State<adminHome> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-              builder: (context) => destinationWidget),
+          MaterialPageRoute(builder: (context) => destinationWidget),
         );
       },
     );
@@ -351,7 +361,8 @@ class _adminHomeState extends State<adminHome> {
     ];
   }
 
-  Widget _buildAlertItem(String title, Color color, String desc, String time) {
+  Widget _buildAlertItem(
+      String alertTitle, Color color, String desc, String time) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -369,7 +380,7 @@ class _adminHomeState extends State<adminHome> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.w500)),
+                Text(alertTitle, style: TextStyle(fontWeight: FontWeight.w500)),
                 Text(desc,
                     style: TextStyle(color: Colors.grey[600], fontSize: 14)),
                 Text(time,
@@ -384,22 +395,85 @@ class _adminHomeState extends State<adminHome> {
 
   Widget _buildReportsCard() {
     return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       color: Colors.blue[800],
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Recent Reports',
-                style: TextStyle(
-                    fontSize: 18,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recent Reports',
+                  style: TextStyle(
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white)),
-            SizedBox(height: 16),
-            ..._buildReportList(),
-            SizedBox(height: 16),
-            TextButton(
-              child: Text('View All', style: TextStyle(color: Colors.white)),
-              onPressed: () {},
+                    color: Colors.white,
+                  ),
+                ),
+                Icon(Icons.assignment, color: Colors.white, size: 24),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...allReports.take(3).map((report) => Column(
+                  children: [
+                    _buildReportItem(
+                        //TODO classify incident and regular report
+                        icon: '📄',
+                        title: 'Report',
+                        subtitle: 'Submitted by ${report["user"]["name"]}',
+                        date: _formatReportDate(report["createdAt"]),
+                        onTap: () => {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => IncidentReportDetails(
+                                    description: report["description"],
+                                    latitude: report["location"]["coordinates"][0]["latitude"],
+                                    longitude: report["location"]["coordinates"][0]["longitude"],
+                                    imageUrls: report["images"],
+                                    reportDate: _formatReportDate(report["createdAt"]),
+                                  ),
+                                ),
+                              )
+                            }),
+                    if (allReports.indexOf(report) != allReports.length - 1)
+                      Divider(color: Colors.white.withOpacity(0.2)),
+                  ],
+                )),
+            if (allReports.length > 3) const SizedBox(height: 10),
+            if (allReports.length > 3)
+              Text(
+                '+ ${allReports.length - 3} more reports',
+                style: TextStyle(color: Colors.white.withOpacity(0.8)),
+              ),
+            const SizedBox(height: 16),
+            Center(
+              child: TextButton.icon(
+                icon: Icon(Icons.list_alt, color: Colors.white),
+                label: Text(
+                  'View All Reports',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: () {
+                },
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: Colors.white.withOpacity(0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -407,17 +481,83 @@ class _adminHomeState extends State<adminHome> {
     );
   }
 
-  List<Widget> _buildReportList() {
-    return [
-      _buildReportItem('📄', 'Daily Patrol Report',
-          'Submitted by <Police Officer 1>', 'Today, 8:00 AM'),
-      Divider(color: Colors.white54, height: 24),
-      _buildReportItem('📄', 'Incident Report #2222',
-          'Submitted by <Police Officer 4>', 'Yesterday, 12:45 AM'),
-    ];
+  Widget _buildReportItem({
+    required String icon,
+    required String title,
+    required String subtitle,
+    required String date,
+    required VoidCallback onTap, // Add this parameter
+  }) {
+    return GestureDetector(
+      onTap: onTap, // Use the provided callback
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(icon, style: const TextStyle(fontSize: 20))),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              date,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildReportItem(
+  String _formatReportDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM d, h:mm a').format(date);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // List<Widget> _buildReportList() {
+  //   return [
+  // _buildReportItem('📄', 'Daily Patrol Report',
+  //         'Submitted by <Police Officer 1>', 'Today, 8:00 AM'),
+  //     Divider(color: Colors.white54, height: 24),
+  //     _buildReportItem('📄', 'Incident Report #2222',
+  //         'Submitted by <Police Officer 4>', 'Yesterday, 12:45 AM'),
+  //   ];
+  // }
+
+  Widget _buildReportItemLegacy(
       String emoji, String title, String author, String time) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
@@ -477,5 +617,331 @@ class _adminHomeState extends State<adminHome> {
       );
     }
   }
+}
 
+class AllReportsPage extends StatelessWidget {
+  final List<dynamic>? reports;
+  const AllReportsPage({super.key, required this.reports});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('All reports')),
+      body: Center(
+          child: Card(
+        color: Colors.blue[800],
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text('Recent Reports',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+              SizedBox(height: 16),
+              Column(
+                  // children: reports!.map<Widget>((report) => _buildReportItem('📄', 'report', 'submitted by ${report["user"]["name"]}', '$report["createdAt"]')).toList(),
+                  ),
+              SizedBox(height: 16),
+            ],
+          ),
+        ),
+      )),
+    );
+  }
+}
+
+class IncidentReportDetails extends StatelessWidget {
+  final String description;
+  final String latitude;
+  final String longitude;
+  final List<dynamic> imageUrls;
+  final String? reportDate;
+  final String? status;
+
+  const IncidentReportDetails({
+    super.key,
+    required this.description,
+    required this.latitude,
+    required this.longitude,
+    required this.imageUrls,
+    this.reportDate,
+    this.status,
+  });
+  void _viewOnMap(BuildContext context) {
+  try {
+    final lat = double.parse(latitude);
+    final lng = double.parse(longitude);
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapScreen(
+          latitude: lat,
+          longitude: lng,
+          description: description,
+        ),
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Invalid location coordinates')),
+    );
+  }
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Incident Report Details'),
+        backgroundColor: const Color(0xff118E13),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Status and date row
+            if (status != null || reportDate != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (status != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12.0, vertical: 6.0),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(status!),
+                          borderRadius: BorderRadius.circular(20.0),
+                        ),
+                        child: Text(
+                          status!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    if (reportDate != null)
+                      Text(
+                        reportDate!,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+            // Location information
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Location',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 16),
+                        const SizedBox(width: 8),
+                        Text('Latitude: $latitude'),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 16),
+                        const SizedBox(width: 8),
+                        Text('Longitude: $longitude'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+  onPressed: () { _viewOnMap(context);  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blueAccent,
+    minimumSize: const Size(double.infinity, 40),
+  ),
+  child: const Text('View on Map'),
+),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Description
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Description',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(description),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Images section
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Images',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (imageUrls.isEmpty) const Text('No images attached'),
+                    if (imageUrls.isNotEmpty)
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8.0,
+                          mainAxisSpacing: 8.0,
+                          childAspectRatio: 1.0,
+                        ),
+                        itemCount: imageUrls.length,
+                        itemBuilder: (context, index) {
+                          return GestureDetector(
+                            onTap: () {
+                              _showFullScreenImage(context, imageUrls[index]);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrls[index],
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // TODO: Implement action for assigning/reassigning
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff118E13),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Assign Officer'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: OutlinedButton(
+                  onPressed: () {
+                    // TODO: Implement action for updating status
+                  },
+                  style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xff118E13))),
+                  child: const Text(
+                    'Update Status',
+                    style: TextStyle(color: Color(0xff118E13)),
+                  ),
+                )),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'in progress':
+        return Colors.blue;
+      case 'resolved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+            backgroundColor: Colors.black,
+            body: Center(
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            )),
+      ),
+    );
+  }
 }

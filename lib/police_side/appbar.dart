@@ -72,7 +72,8 @@ class _Appbar0State extends State<Appbar0> {
                   child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [Text(userData[2]), Text(userData[3])]),
+                      children: userData.isEmpty ? [Text("N/A"), Text("N/A")] :
+                    [Text(userData[2]), Text(userData[3])]),
                 ),
               ),
             ),
