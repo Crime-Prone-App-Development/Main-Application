@@ -100,7 +100,7 @@ class _AppLoaderState extends State<AppLoader> {
               body: Center(
                 child: CircleAvatar(
                   backgroundImage:
-                      AssetImage('assets/logos/up_police_logo.png'),
+                      AssetImage('assets/logos/up_police_logo.jpeg'),
                   radius: 60,
                 ),
               ),
@@ -137,14 +137,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Smart Police',
       initialRoute: initialRoute,
       routes: {
         '/': (context) => roleChange(),
         '/login': (context) => LoginPage(),
-        // '/otp': (context) => OTPPage(
-        //       phoneNumber: ModalRoute.of(context)?.settings.arguments as String,
-        //     ),
         '/register': (context) => RegisterPage(),
         '/home': (context) => homePage(),
         '/adminHome': (context) => adminHome(),

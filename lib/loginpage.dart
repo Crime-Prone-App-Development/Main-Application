@@ -1,4 +1,4 @@
-import 'dart:ffi' hide Size;
+// import 'dart:ffi' hide Size;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -116,7 +116,7 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 SizedBox(height: 40),
-                Image.asset('assets/logos/up_police_logo.png',
+                Image.asset('assets/logos/up_police_logo.jpeg',
                     height: 300), // Replace with correct path
                 SizedBox(height: 40),
                 Text(
@@ -168,33 +168,6 @@ class _LoginPageState extends State<LoginPage> {
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.w700)),
-                ),
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    InkWell(
-                      onTap: () => {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => forgotPassword())),
-                      },
-                      child: Text("Forgot Password?",
-                          style: TextStyle(
-                              color: Colors.red, fontWeight: FontWeight.w500)),
-                    ),
-                    SizedBox(width: 10),
-                    InkWell(
-                      onTap: () => {
-                        Navigator.pushNamed(context, '/'),
-                      },
-                      child: Text("Back to Role Login Page",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w500)),
-                    ),
-                  ],
                 ),
                 SizedBox(height: 60),
                 InkWell(

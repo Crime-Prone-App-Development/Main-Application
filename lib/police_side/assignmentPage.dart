@@ -29,106 +29,122 @@ class _AssignmentPageState extends State<AssignmentPage> {
         ),
         body: SingleChildScrollView(
           child: !AssignmentLoaded
-              ? CircularProgressIndicator()
+              ?  Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Center(  // <-- Ensures the loader is centered
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min, // Prevents Column from expanding
+                          children: [
+                            CircularProgressIndicator(),  // Loading spinner
+                            SizedBox(height: 16),  // Spacing between spinner and text
+                            Text("Loading assignments..."),  // Loading text
+                          ],
+                        ),
+                      ),
+              )
               : Column(
                   children: Assignments.isEmpty
                       ? [Text("No Asssignments Alloted")]
                       : Assignments.map<Widget>((element) {
+                          print(element['area']);
                           return _modifiedCard(
-                            title: 'Assignment',
-                            areaName: element['location'][0]['name'] ?? '',
-                            startsAt: _parseTime(
-                                element['startsAt']?.toString() ?? ''),
-                            endsAt:
-                                _parseTime(element['endsAt']?.toString() ?? ''),
-                            isActive: isPastEndTime(element['endsAt'].toString())
-                          );
+                              title: 'Assignment',
+                              areaName: element['area']["name"] ?? '',
+                              startsAt: _parseTime(
+                                  element['startsAt']?.toString() ?? ''),
+                              endsAt: _parseTime(
+                                  element['endsAt']?.toString() ?? ''),
+                              isActive:
+                                  isPastEndTime(element['endsAt'].toString()));
                         }).toList(),
                 ),
         ));
   }
 
-  Widget _modifiedCard({title, areaName, startsAt, endsAt, bool isActive = false}) {
-  return Padding(
-    padding: const EdgeInsets.all(8.0),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 5,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title and Status
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue[800],
-                        ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.green[50] : Colors.red[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isActive ? Colors.green : Colors.red,
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    isActive ? 'Active' : 'Inactive',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isActive ? Colors.green[800] : Colors.red[800],
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Time Badge
-            _buildTimeBadge(startsAt, endsAt),
-            const SizedBox(height: 12),
-
-            // Location
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    areaName,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[800],
-                        ),
-                  ),
-                ),
-              ],
+  Widget _modifiedCard(
+      {title, areaName, startsAt, endsAt, bool isActive = false}) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 5,
+              spreadRadius: 2,
             ),
           ],
         ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and Status
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[800],
+                          ),
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isActive ? Colors.green[50] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isActive ? Colors.green : Colors.red,
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      isActive ? 'Active' : 'Inactive',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color:
+                                isActive ? Colors.green[800] : Colors.red[800],
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Time Badge
+              _buildTimeBadge(startsAt, endsAt),
+              const SizedBox(height: 12),
+
+              // Location
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.location_on, size: 20, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      areaName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[800],
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildTimeBadge(startsAt, endsAt) {
     // TimeOfDay start = TimeOfDay.fromDateTime(DateTime.parse(startsAt.split(' ')))
@@ -185,7 +201,8 @@ class _AssignmentPageState extends State<AssignmentPage> {
     String? token = await TokenHelper.getToken();
     try {
       final response = await http.get(
-        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/assignments'),
+        Uri.parse(
+            'https://patrollingappbackend.onrender.com/api/v1/assignments'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token}'
