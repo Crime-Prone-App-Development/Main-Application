@@ -5,6 +5,7 @@ import 'package:mainapp/otp_verify.dart';
 import 'package:mainapp/police_side/home.dart';
 import 'package:mainapp/police_side/incident.dart';
 import 'package:mainapp/register.dart';
+import 'package:mainapp/role.dart';
 import './token_helper.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:convert';
@@ -14,35 +15,35 @@ import 'admin_side/home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _connectToSocket(); 
   runApp(AppLoader()); // Show a loader while checking the token
 }
-Future<void> _connectToSocket() async{
+
+Future<void> _connectToSocket() async {
   String? token = await TokenHelper.getToken();
   // Establish socket connection
-  IO.Socket socket = IO.io('https://patrollingappbackend.onrender.com', IO.OptionBuilder()
-      .setTransports(['websocket']) // for Flutter or Dart VM
-      // .disableAutoConnect()  // disable auto-connection
-      .setExtraHeaders({'authorization': "$token"})// optional
-      .build());
+  IO.Socket socket = IO.io(
+      'https://patrollingappbackend.onrender.com',
+      IO.OptionBuilder().setTransports(['websocket']) // for Flutter or Dart VM
+          // .disableAutoConnect()  // disable auto-connection
+          .setExtraHeaders({'authorization': "$token"}) // optional
+          .build());
   socket.onConnect((_) {
     print('Connected to Socket Server');
   });
 
-  socket.on("selfie_prompt", (msg){
-      print(msg);
-    });
+  socket.on("selfie_prompt", (msg) {
+    print(msg);
+  });
 
   socket.onDisconnect((_) {
-      print('Disconnected from server');
+    print('Disconnected from server');
   });
 
   socket.on('locatioLogged', (msg) {
-
     print(msg);
   });
-  
-  Timer.periodic(Duration(seconds : 4), (timer) async {
+
+  Timer.periodic(Duration(seconds: 4), (timer) async {
     Position position = await _getCurrentLocation();
     // Send location data to the server using Socket.IO
     socket.emit('locationUpdate', {
@@ -51,31 +52,41 @@ Future<void> _connectToSocket() async{
     });
     print('Background Location: ${position.latitude}, ${position.longitude}');
   });
-
 }
 
 Future<Position> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw 'Location services are disabled';
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw 'Location permissions are denied';
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw 'Location permissions are permanently denied';
-    }
-
-    return await Geolocator.getCurrentPosition();
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    throw 'Location services are disabled';
   }
 
-class AppLoader extends StatelessWidget {
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      throw 'Location permissions are denied';
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+    throw 'Location permissions are permanently denied';
+  }
+
+  return await Geolocator.getCurrentPosition();
+}
+
+class AppLoader extends StatefulWidget {
+  @override
+  State<AppLoader> createState() => _AppLoaderState();
+}
+
+class _AppLoaderState extends State<AppLoader> {
+  @override
+  void initState() {
+    super.initState();
+    _connectToSocket(); // moved here
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -103,7 +114,14 @@ class AppLoader extends StatelessWidget {
             );
           } else {
             final List<String?>? userInfo = snapshot.data;
-            return MyApp(initialRoute: userInfo![0] != null ? userInfo[4] != 'ADMIN' ? '/home' : '/adminHome' : '/login');
+            final String? token = userInfo!.isNotEmpty ? userInfo[0] : null;
+            final String? role = userInfo.length > 4 ? userInfo[4] : null;
+
+            return MyApp(
+              initialRoute: token != null
+                  ? (role != 'ADMIN' ? '/home' : '/adminHome')
+                  : '/role',
+            );
           }
         },
       ),
@@ -122,13 +140,14 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       initialRoute: initialRoute,
       routes: {
+        '/': (context) => roleChange(),
         '/login': (context) => LoginPage(),
         // '/otp': (context) => OTPPage(
         //       phoneNumber: ModalRoute.of(context)?.settings.arguments as String,
         //     ),
         '/register': (context) => RegisterPage(),
         '/home': (context) => homePage(),
-        '/adminHome' : (context) => adminHome(),
+        '/adminHome': (context) => adminHome(),
         // '/incident': (context) => incidentReport(),
       },
       theme: ThemeData(

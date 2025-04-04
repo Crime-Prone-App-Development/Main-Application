@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/police_side/notification.dart';
 import 'package:mainapp/token_helper.dart';
 
 class Appbar0 extends StatefulWidget {
@@ -51,7 +52,13 @@ class _Appbar0State extends State<Appbar0> {
                     size: 45,
                     color: Colors.black,
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => NotificationsScreen()),
+                    );
+                  },
                 ),
               ],
             ),
@@ -70,9 +77,10 @@ class _Appbar0State extends State<Appbar0> {
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8.0),
                   child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [Text(userData[2]), Text(userData[3])]),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    // children: [Text(userData[2]), Text(userData[2])]
+                  ),
                 ),
               ),
             ),

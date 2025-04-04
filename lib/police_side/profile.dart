@@ -1,8 +1,28 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  File? _pickedImage;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _pickedImage = File(pickedFile.path);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -55,9 +75,14 @@ class ProfilePage extends StatelessWidget {
         padding: EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundImage: AssetImage('assets/default_avatar.png'),
+            GestureDetector(
+              onTap: _pickImage,
+              child: CircleAvatar(
+                radius: 40,
+                backgroundImage: _pickedImage != null
+                    ? FileImage(_pickedImage!)
+                    : AssetImage('assets/default_avatar.png') as ImageProvider,
+              ),
             ),
             SizedBox(width: 16),
             Expanded(
