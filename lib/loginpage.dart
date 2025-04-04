@@ -169,6 +169,32 @@ class _LoginPageState extends State<LoginPage> {
                           fontSize: 20,
                           fontWeight: FontWeight.w700)),
                 ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    InkWell(
+                      onTap: () => {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => forgotPassword())),
+                      },
+                      child: Text("Forgot Password?",
+                          style: TextStyle(
+                              color: Colors.red, fontWeight: FontWeight.w500)),
+                    ),
+                    SizedBox(width: 10),
+                    InkWell(
+                      onTap: () => {
+                        Navigator.pushNamed(context, '/'),
+                      },
+                      child: Text("Back to Role Login Page",
+                          style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
                 SizedBox(height: 60),
                 InkWell(
                   onTap: () => {
