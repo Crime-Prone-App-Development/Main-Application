@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/police_side/notification.dart';
 import 'package:mainapp/token_helper.dart';
 
 class Appbar0 extends StatefulWidget {
@@ -51,7 +52,13 @@ class _Appbar0State extends State<Appbar0> {
                     size: 45,
                     color: Colors.black,
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => NotificationsScreen()),
+                    );
+                  },
                 ),
               ],
             ),
