@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/admin_side/alert.dart';
+import 'package:mainapp/admin_side/checkpoints.dart';
+import 'package:mainapp/admin_side/patrolroutes.dart';
+import 'package:mainapp/admin_side/reports.dart';
+import 'package:mainapp/police_side/checkpoint.dart';
 import '../token_helper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import './officersTable.dart';
 import 'assign.dart';
+
 class adminHome extends StatefulWidget {
   @override
   _adminHomeState createState() => _adminHomeState();
@@ -107,11 +113,11 @@ class _adminHomeState extends State<adminHome> {
         padding: EdgeInsets.only(top: 20, left: 8),
         children: [
           _buildMenuItem('Dashboard', Icons.dashboard, Placeholder()),
-          _buildMenuItem('Patrol Routes', Icons.map, Placeholder()),
+          _buildMenuItem('Patrol Routes', Icons.map, PatrolRoutesScreen()),
           _buildMenuItem('Assign Police Officers', Icons.people, AdminApp()),
-          _buildMenuItem('Reports', Icons.assignment, Placeholder()),
-          _buildMenuItem('Alerts', Icons.warning, Placeholder()),
-          _buildMenuItem('Checkpoints', Icons.flag, Placeholder()),
+          _buildMenuItem('Reports', Icons.assignment, ReportsPage()),
+          _buildMenuItem('Alerts', Icons.warning, AlertsScreen()),
+          _buildMenuItem('Checkpoints', Icons.flag, CheckpointsAdminPage()),
           _buildMenuItem('Settings', Icons.settings, Placeholder()),
         ],
       ),
@@ -127,8 +133,7 @@ class _adminHomeState extends State<adminHome> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-              builder: (context) => destinationWidget),
+          MaterialPageRoute(builder: (context) => destinationWidget),
         );
       },
     );
@@ -477,5 +482,4 @@ class _adminHomeState extends State<adminHome> {
       );
     }
   }
-
 }
