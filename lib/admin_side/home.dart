@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mainapp/admin_side/alert.dart';
 import 'package:mainapp/admin_side/checkpoints.dart';
 import 'package:mainapp/admin_side/patrolroutes.dart';
 import 'package:mainapp/admin_side/reports.dart';
 import 'package:mainapp/police_side/checkpoint.dart';
+import 'package:mainapp/police_side/home.dart';
 import '../token_helper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -21,7 +23,40 @@ class _adminHomeState extends State<adminHome> {
   final double _sidebarWidth = 200.0;
   List<dynamic> allReports = [];
   bool reportsLoaded = false;
-
+  final List<PatrolRoute> _routes = [
+    PatrolRoute(
+      position: LatLng(26.511639, 80.230954),
+      id: 1,
+      name: 'Main Entrance',
+      guards: ['John Doe', 'Jane Smith'],
+      isActive: true,
+      lastUpdated: '10/15/23',
+    ),
+    PatrolRoute(
+      position: LatLng(26.511639, 80.230954),
+      id: 2,
+      name: 'Parking Lot',
+      guards: ['Mike Johnson'],
+      isActive: true,
+      lastUpdated: '10/14/23',
+    ),
+    PatrolRoute(
+      position: LatLng(26.511639, 80.230954),
+      id: 3,
+      name: 'Warehouse Area',
+      guards: ['Sarah Connor'],
+      isActive: false,
+      lastUpdated: '10/10/23',
+    ),
+    PatrolRoute(
+      position: LatLng(26.511639, 80.230954),
+      id: 4,
+      name: 'Front Gate',
+      guards: ['John Doe'],
+      isActive: true,
+      lastUpdated: '10/12/23',
+    ),
+  ];
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,13 +147,12 @@ class _adminHomeState extends State<adminHome> {
       child: ListView(
         padding: EdgeInsets.only(top: 20, left: 8),
         children: [
-          _buildMenuItem('Dashboard', Icons.dashboard, Placeholder()),
+          _buildMenuItem('Dashboard', Icons.dashboard, adminHome()),
           _buildMenuItem('Patrol Routes', Icons.map, PatrolRoutesScreen()),
           _buildMenuItem('Assign Police Officers', Icons.people, AdminApp()),
           _buildMenuItem('Reports', Icons.assignment, ReportsPage()),
           _buildMenuItem('Alerts', Icons.warning, AlertsScreen()),
           _buildMenuItem('Checkpoints', Icons.flag, CheckpointsAdminPage()),
-          _buildMenuItem('Settings', Icons.settings, Placeholder()),
         ],
       ),
     );
@@ -205,26 +239,28 @@ class _adminHomeState extends State<adminHome> {
   Widget _buildMainGrid() {
     return Column(
       children: [
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Live Patrol Map',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                SizedBox(height: 16),
-                Container(
-                  height: 300,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(child: Text('Map placeholder')),
-                ),
-              ],
+        InkWell(
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FullScreenRouteMap(routes: _routes),
+                ));
+          },
+          child: Container(
+            height: 300,
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 174, 235, 230),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                "Click to view all patrol routes on map",
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700]),
+              ),
             ),
           ),
         ),

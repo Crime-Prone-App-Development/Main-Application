@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class CheckpointsAdminPage extends StatefulWidget {
   const CheckpointsAdminPage({super.key});
@@ -9,32 +10,57 @@ class CheckpointsAdminPage extends StatefulWidget {
 
 class _CheckpointsAdminPageState extends State<CheckpointsAdminPage> {
   String _selectedFilter = 'all';
+  late GoogleMapController _mapController;
+  CameraPosition _currentCameraPosition = const CameraPosition(
+    target: LatLng(26.511639, 80.230954),
+    zoom: 14,
+  );
+
   final List<Map<String, dynamic>> _checkpoints = [
     {
       'id': '1',
       'name': 'Main Entrance',
       'location': '123 Main St',
+      'lat': 26.511639,
+      'lng': 80.230954,
       'status': 'Active'
     },
     {
       'id': '2',
       'name': 'Parking Lot',
       'location': '456 Park Ave',
+      'lat': 26.512500,
+      'lng': 80.231500,
       'status': 'Active'
     },
     {
       'id': '3',
       'name': 'Warehouse Area',
       'location': '789 Warehouse Rd',
+      'lat': 26.513000,
+      'lng': 80.232000,
       'status': 'Inactive'
     },
     {
       'id': '4',
       'name': 'Front Gate',
       'location': '321 Front St',
+      'lat': 26.510000,
+      'lng': 80.229500,
       'status': 'Active'
     },
   ];
+  @override
+  void initState() {
+    super.initState();
+    _initializeMarkers();
+  }
+
+  Set<Marker> _markers = {};
+  CameraPosition _initialCameraPosition = const CameraPosition(
+    target: LatLng(26.511639, 80.230954),
+    zoom: 14,
+  );
 
   List<Map<String, dynamic>> get _filteredCheckpoints {
     return _checkpoints.where((c) {
@@ -43,6 +69,44 @@ class _CheckpointsAdminPageState extends State<CheckpointsAdminPage> {
       if (_selectedFilter == 'inactive') return status == 'inactive';
       return true;
     }).toList();
+  }
+
+  void _initializeMarkers() {
+    _markers = _checkpoints.map((checkpoint) {
+      final lat = checkpoint['lat'] as double;
+      final lng = checkpoint['lng'] as double;
+      return Marker(
+        markerId: MarkerId(checkpoint['id']),
+        position: LatLng(lat, lng),
+        infoWindow: InfoWindow(
+          title: checkpoint['name'],
+          snippet: checkpoint['status'],
+        ),
+        onTap: () {
+          _mapController.animateCamera(
+            CameraUpdate.newLatLngZoom(LatLng(lat, lng), 18),
+          );
+        },
+      );
+    }).toSet();
+  }
+
+  void _openFullScreenMap(BuildContext context) async {
+    final updatedPosition = await Navigator.push<CameraPosition>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FullScreenMapPage(
+          initialPosition: _currentCameraPosition,
+          markers: _markers,
+        ),
+      ),
+    );
+
+    if (updatedPosition != null) {
+      setState(() {
+        _currentCameraPosition = updatedPosition;
+      });
+    }
   }
 
   @override
@@ -115,15 +179,21 @@ class _CheckpointsAdminPageState extends State<CheckpointsAdminPage> {
               ),
             ),
             const SizedBox(height: 24),
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(8),
+            InkWell(
+              onTap: () => _openFullScreenMap(context),
+              child: Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 174, 235, 230),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    "Click to view map",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-              alignment: Alignment.center,
-              child: const Text('Live Patrol Map'),
             ),
           ],
         ),
@@ -140,6 +210,51 @@ class _CheckpointsAdminPageState extends State<CheckpointsAdminPage> {
           _selectedFilter = selected ? value : 'all';
         });
       },
+    );
+  }
+}
+
+class FullScreenMapPage extends StatefulWidget {
+  final CameraPosition initialPosition;
+  final Set<Marker> markers;
+
+  const FullScreenMapPage({
+    super.key,
+    required this.initialPosition,
+    required this.markers,
+  });
+
+  @override
+  State<FullScreenMapPage> createState() => _FullScreenMapPageState();
+}
+
+class _FullScreenMapPageState extends State<FullScreenMapPage> {
+  late GoogleMapController _mapController;
+  CameraPosition? _currentPosition;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Map View'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context, _currentPosition ?? widget.initialPosition);
+          },
+        ),
+      ),
+      body: GoogleMap(
+        initialCameraPosition: widget.initialPosition,
+        markers: widget.markers,
+        zoomControlsEnabled: true,
+        onMapCreated: (controller) {
+          _mapController = controller;
+        },
+        onCameraMove: (position) {
+          _currentPosition = position;
+        },
+      ),
     );
   }
 }
