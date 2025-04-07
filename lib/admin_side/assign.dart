@@ -4,6 +4,8 @@ import 'dart:convert';
 import '../token_helper.dart';
 import 'package:http/http.dart' as http;
 import './officersTable.dart';
+import '../addressCoordinates.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() {
   runApp(AdminApp());
@@ -32,6 +34,17 @@ class _AdminPageState extends State<AdminPage> {
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
 
+
+  final TextEditingController _newAreaNameController = TextEditingController();
+  final TextEditingController _newAreaDescriptionController = TextEditingController();
+  final TextEditingController _newAreaCrimeRateController = TextEditingController();
+  bool _showNewAreaFields = false;
+  String? _crimeRateValue = 'low';
+
+  final LocationService _locationService = LocationService(dotenv.env['MAPS_API_KEY'] ?? '');
+  LatLng? _coordinates;
+  bool _isLoading = false;
+
 @override
   void initState() {
     super.initState();
@@ -48,6 +61,144 @@ class _AdminPageState extends State<AdminPage> {
       officerIds = officers.map((officer) => officer["_id"].toString()).toList();
     });
   }
+  Future<void> _searchLocation() async {
+    setState(() {
+      _isLoading = true;
+      _coordinates = null;
+    });
+
+    final coordinates = await _locationService.getCoordinates(_newAreaNameController.text);
+
+    setState(() {
+      _coordinates = coordinates;
+      _isLoading = false;
+    });
+  }
+  Future<void> _showAddAreaDialog(BuildContext context) async {
+  return showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text("Add New Area"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _newAreaNameController,
+                decoration: InputDecoration(
+                  labelText: "Area Name",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: _newAreaDescriptionController,
+                decoration: InputDecoration(
+                  labelText: "Description",
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+              SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _crimeRateValue,
+                decoration: InputDecoration(
+                  labelText: "Crime Rate",
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: 'low',
+                    child: Text("Low"),
+                  ),
+                  DropdownMenuItem(
+                    value: 'medium',
+                    child: Text("Medium"),
+                  ),
+                  DropdownMenuItem(
+                    value: 'high',
+                    child: Text("High"),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _crimeRateValue = value;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_newAreaNameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Please enter area name')),
+                );
+                return;
+              }
+              
+              await _createNewArea(context);
+              Navigator.pop(context);
+            },
+            child: Text("Add Area"),
+          ),
+        ],
+      );
+    },
+  );
+}
+Future<void> _createNewArea(BuildContext context) async {
+  String? token = await TokenHelper.getToken();
+  await _searchLocation();
+  print(_coordinates);
+  try {
+    final response = await http.post(
+      Uri.parse('https://patrollingappbackend.onrender.com/api/v1/crime-areas'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${token}'
+      },
+      body: json.encode({
+        'name': _newAreaNameController.text,
+        'lon': _coordinates?.longitude ?? 0.0,
+        'lat' : _coordinates?.latitude ?? 0.0,
+        'areaType' : "Point",
+        'description': _newAreaDescriptionController.text,
+        'crimeRate': _crimeRateValue,
+      }),
+    );
+    print(response);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = json.decode(response.body);
+      setState(() {
+        selectedArea = responseData['data']['_id']; // Use the ID as selected area
+        areas.add(responseData['data']['_id']); // Add to dropdown list
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Area added successfully!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add area: ${response.body}')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error adding area: $e')),
+    );
+  } finally {
+    _newAreaNameController.clear();
+    _newAreaDescriptionController.clear();
+    _newAreaCrimeRateController.clear();
+  }
+}
 
   Future<void> getAllAreas(BuildContext context) async {
     String? token = await TokenHelper.getToken();
@@ -65,7 +216,7 @@ class _AdminPageState extends State<AdminPage> {
         final Map<String, dynamic> responseData = json.decode(response.body);
 
         setState(() {
-          areas = responseData['data']?.map((officer) => officer["_id"].toString()).toList() ?? [];
+          areas = responseData['data'];
           });
 
       }
@@ -193,6 +344,8 @@ class _AdminPageState extends State<AdminPage> {
   void dispose() {
     _startTimeController.dispose();
     _endTimeController.dispose();
+    _newAreaNameController.dispose();
+    _newAreaDescriptionController.dispose();
     super.dispose();
   }
 
@@ -393,40 +546,68 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Widget _buildAreaDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Area",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Area",
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
         ),
-        SizedBox(height: 8),
-        DropdownButtonFormField(
-          decoration: InputDecoration(
-            labelText: "Select area",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            prefixIcon: Icon(Icons.location_on),
+      ),
+      SizedBox(height: 8),
+      DropdownButtonFormField(
+        decoration: InputDecoration(
+          labelText: "Select area",
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          value: selectedArea.isNotEmpty ? selectedArea : null,
-          items: areas.map((area) {
+          prefixIcon: Icon(Icons.location_on),
+        ),
+        value: selectedArea.isNotEmpty ? selectedArea : null,
+        items: [
+          ...areas.map((area) {
             return DropdownMenuItem(
-              value: area,
-              child: Text(area),
+              value: area['_id'], // Use the area ID as value
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(area['name']),
+                  // Text(
+                  //   'Crime rate: ${area['crimeRate']}',
+                  //   style: TextStyle(
+                  //     fontSize: 12,
+                  //     color: Colors.grey,
+                  //   ),
+                  // ),
+                ],
+              ),
             );
           }).toList(),
-          onChanged: (value) {
+          DropdownMenuItem(
+            value: "add_new",
+            child: Row(
+              children: [
+                Icon(Icons.add, size: 18),
+                SizedBox(width: 8),
+                Text("Add New Area"),
+              ],
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          if (value == "add_new") {
+            _showAddAreaDialog(context);
+          } else {
             setState(() {
               selectedArea = value as String;
             });
-          },
-          validator: (value) => value == null ? 'Please select an area' : null,
-        ),
-      ],
-    );
-  }
+          }
+        },
+        validator: (value) => value == null ? 'Please select an area' : null,
+      ),
+    ],
+  );
+}
 }

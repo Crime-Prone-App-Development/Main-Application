@@ -12,10 +12,12 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'admin_side/home.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(AppLoader()); // Show a loader while checking the token
+  runApp(AppLoader());
+  await dotenv.load(fileName: ".env"); // Show a loader while checking the token
 }
 
 Future<void> _connectToSocket() async {
@@ -140,7 +142,7 @@ class MyApp extends StatelessWidget {
       title: 'Smart Police',
       initialRoute: initialRoute,
       routes: {
-        '/': (context) => roleChange(),
+        '/role': (context) => roleChange(),
         '/login': (context) => LoginPage(),
         '/register': (context) => RegisterPage(),
         '/home': (context) => homePage(),

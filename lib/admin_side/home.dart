@@ -7,6 +7,10 @@ import './officersTable.dart';
 import 'assign.dart';
 import 'package:intl/intl.dart';
 import 'map_screen.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:typed_data';
 // import './reportsDashboard.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -669,6 +673,75 @@ class IncidentReportDetails extends StatelessWidget {
     this.reportDate,
     this.status,
   });
+
+  Future<Uint8List> _generatePdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Header(level: 0, child: pw.Text('Incident Report Details')),
+              pw.SizedBox(height: 20),
+              pw.Text('Description:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(description),
+              pw.SizedBox(height: 20),
+              pw.Text('Location:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('Latitude: $latitude'),
+              pw.Text('Longitude: $longitude'),
+              pw.SizedBox(height: 20),
+              pw.Text('Report Date:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(reportDate ?? 'N/A'),
+              pw.SizedBox(height: 20),
+              if (status != null)
+                pw.Text('Status:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              if (status != null)
+                pw.Text(status!),
+            ],
+          );
+        },
+      ),
+    );
+
+    // Add images if available
+    if (imageUrls.isNotEmpty) {
+      for (var imageUrl in imageUrls) {
+        try {
+          final response = await http.get(Uri.parse(imageUrl));
+          if (response.statusCode == 200) {
+            final image = pw.MemoryImage(response.bodyBytes);
+            
+            pdf.addPage(
+              pw.Page(
+                build: (pw.Context context) {
+                  return pw.Center(
+                    child: pw.Image(image),
+                  );
+                },
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('Error loading image for PDF: $e');
+        }
+      }
+    }
+
+    return pdf.save();
+  }
+
+  void _printReport() async {
+    try {
+      await Printing.layoutPdf(
+        onLayout: (_) => _generatePdf(),
+      );
+    } catch (e) {
+      debugPrint('Error printing PDF: $e');
+    }
+  }
+
   void _viewOnMap(BuildContext context) {
   try {
     final lat = double.parse(latitude);
@@ -697,6 +770,12 @@ class IncidentReportDetails extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Incident Report Details'),
         backgroundColor: const Color(0xff118E13),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: _printReport,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -870,20 +949,7 @@ class IncidentReportDetails extends StatelessWidget {
 
             // Action buttons
             Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Implement action for assigning/reassigning
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff118E13),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Assign Officer'),
-                  ),
-                ),
-                const SizedBox(width: 8),
+              children: [                  
                 Expanded(
                     child: OutlinedButton(
                   onPressed: () {
