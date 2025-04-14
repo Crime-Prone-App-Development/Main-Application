@@ -13,6 +13,7 @@ class TokenHelper {
   static const String userPhoneNum = 'user_phone';
   static const String userRoleKey = 'user_role';
   static const String AssignmentInfoKey = 'assignment_info';
+  static const String badgeIdKey= 'badge_id';
 
   // Save token
   static Future<void> saveToken({
@@ -20,13 +21,15 @@ class TokenHelper {
     required String userId,
     required String userName,
     required String userPhone,
-    required String userRole
+    required String userRole,
+    required String badgeId
   }) async {
     await _storage.write(key: authTokenKey, value: token);
     await _storage.write(key: userIdKey, value: userId);
     await _storage.write(key: userNameKey, value: userName);
     await _storage.write(key: userPhoneNum, value: userPhone);
     await _storage.write(key: userRoleKey, value: userRole);
+    await _storage.write(key: badgeIdKey, value: badgeId);
   }
 
   // Get token
@@ -40,7 +43,8 @@ class TokenHelper {
     String ? userName= await _storage.read(key: userNameKey);
     String ? userPhone= await _storage.read(key: userPhoneNum);
     String ? userRole = await _storage.read(key: userRoleKey);
-    return [token, userId, userName, userPhone, userRole];
+    String ? badgeId = await _storage.read(key: badgeIdKey);
+    return [token, userId, userName, userPhone, userRole, badgeId];
     
   }
 
@@ -66,7 +70,12 @@ class TokenHelper {
 
 
   // Clear token
-  static Future<void> clearToken() async {
+  static Future<void> clearData() async {
     await _storage.delete(key: authTokenKey);
+    await _storage.delete(key: userNameKey);
+    await _storage.delete(key: userIdKey);
+    await _storage.delete(key: userPhoneNum);
+    await _storage.delete(key: userRoleKey);
+    await _storage.delete(key: badgeIdKey);
   }
 }

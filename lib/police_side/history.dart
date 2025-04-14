@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:mainapp/userProvider.dart';
+import 'package:mainapp/reportsProvider.dart';
 
 class HistoryPage extends StatefulWidget {
   @override
@@ -7,6 +10,9 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
+  List<dynamic> userInfo = [];
+  List<dynamic> submittedReports = [];
+
   DateTime? _startDate;
   DateTime? _endDate;
   final DateFormat _dateFormat = DateFormat('MM/dd/yyyy');
@@ -24,7 +30,14 @@ class _HistoryPageState extends State<HistoryPage> {
       });
     }
   }
+  @override
+  void initState(){
+    super.initState();
+    setState(() {
+      userInfo = context.read<UserProvider>().user!;
+    });
 
+  }
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -34,9 +47,9 @@ class _HistoryPageState extends State<HistoryPage> {
         children: [
           _buildHeader(),
           SizedBox(height: 20),
-          _buildDateRangeSelector(),
-          SizedBox(height: 24),
-          _buildOverviewSection(),
+          // _buildDateRangeSelector(),
+          // SizedBox(height: 24),
+          // _buildOverviewSection(),
           SizedBox(height: 24),
           _buildSectionTitle('Detailed Patrol Logs'),
           _buildPatrolLogsTable(),
@@ -58,25 +71,25 @@ class _HistoryPageState extends State<HistoryPage> {
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 8),
-        Text('Guard Name: Prakhar Mishra'),
-        Text('Guard ID: 12345'),
+        Text('Guard Name: ${userInfo[2]}'),
+        Text('Guard ID: ${userInfo[5]}'),
       ],
     );
   }
 
-  Widget _buildDateRangeSelector() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildDateButton('Start Date', _startDate),
-        ),
-        SizedBox(width: 16),
-        Expanded(
-          child: _buildDateButton('End Date', _endDate),
-        ),
-      ],
-    );
-  }
+  // Widget _buildDateRangeSelector() {
+  //   return Row(
+  //     children: [
+  //       Expanded(
+  //         child: _buildDateButton('Start Date', _startDate),
+  //       ),
+  //       SizedBox(width: 16),
+  //       Expanded(
+  //         child: _buildDateButton('End Date', _endDate),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildDateButton(String label, DateTime? date) {
     return TextButton(
@@ -94,24 +107,25 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _buildOverviewSection() {
-    return GridView(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      children: [
-        _buildMetricCard('Total Patrols Completed', '150'),
-        _buildMetricCard('Total Incidents Reported', '5'),
-        _buildMetricCard('Average Response Time', '3 mins'),
-        _buildMetricCard('Overall Satisfaction Rating', '★★★★☆ (80%)'),
-      ],
-    );
-  }
+  // Widget _buildOverviewSection() {
+  //   return GridView(
+  //     shrinkWrap: true,
+  //     physics: NeverScrollableScrollPhysics(),
+  //     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+  //       crossAxisCount: 2,
+  //       childAspectRatio: 2,
+  //       crossAxisSpacing: 8,
+  //       mainAxisSpacing: 8,
+  //     ),
+  //     children: [
+  //       _buildMetricCard('Total Patrols Completed', '0'),
+  //       _buildMetricCard('Total Incidents Reported', '0'),
+  //       _buildMetricCard('Average Response Time', '0 mins'),
+  //       // _buildMetricCard('Overall Satisfaction Rating', '★★★★☆ (80%)'),
+  //       _buildMetricCard('Overall Satisfaction Rating', '☆☆☆☆☆ (0%)'),
+  //     ],
+  //   );
+  // }
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -140,22 +154,22 @@ class _HistoryPageState extends State<HistoryPage> {
           DataColumn(label: Text('Note')),
         ],
         rows: [
-          _buildDataRow([
-            '10/15/2023',
-            '8:00 AM',
-            'Checkpoint 1, 2, 3',
-            '1',
-            'All clear'
-          ]),
-          _buildDataRow(
-              ['10/14/2023', '8:00 AM', 'Checkpoint 1, 2', '0', 'No issues']),
-          _buildDataRow([
-            '10/13/2023',
-            '8:00 AM',
-            'Checkpoint 1, 3',
-            '2',
-            'Suspicious activity'
-          ]),
+          // _buildDataRow([
+          //   '10/15/2023',
+          //   '8:00 AM',
+          //   'Checkpoint 1, 2, 3',
+          //   '1',
+          //   'All clear'
+          // ]),
+          // _buildDataRow(
+          //     ['10/14/2023', '8:00 AM', 'Checkpoint 1, 2', '0', 'No issues']),
+          // _buildDataRow([
+          //   '10/13/2023',
+          //   '8:00 AM',
+          //   'Checkpoint 1, 3',
+          //   '2',
+          //   'Suspicious activity'
+          // ]),
         ],
       ),
     );
@@ -168,26 +182,23 @@ class _HistoryPageState extends State<HistoryPage> {
         columnSpacing: 20,
         columns: [
           DataColumn(label: Text('Date')),
-          DataColumn(label: Text('Time')),
+          // DataColumn(label: Text('Time')),
           DataColumn(label: Text('Incident Type')),
           DataColumn(label: Text('Description')),
         ],
-        rows: [
-          _buildDataRow([
-            '10/15/2023',
-            '9:00 AM',
-            'Security Breach',
-            'Unauthorized entry detected'
-          ]),
-          _buildDataRow([
-            '10/13/2023',
-            '8:30 AM',
-            'Suspicious Activity',
-            'Individual loitering'
-          ]),
-        ],
+        rows: submittedReports.map((report) {
+          return _buildDataRow([_formatReportDate(report["createdAt"]) , report["type"], report["description"]]);
+        }).toList(),
       ),
     );
+  }
+  String _formatReportDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM d, h:mm a').format(date);
+    } catch (e) {
+      return '';
+    }
   }
 
   DataRow _buildDataRow(List<String> cells) {

@@ -34,6 +34,9 @@ class _incidentReportState extends State<incidentReport> {
   final _longitudeController = TextEditingController();
   bool _isSubmitting = false;
 
+  String type = 'Incident Report';
+  final List<String> items = ["Incident Report", "Daily Report"]; 
+
   Future<void> _getCurrentLocation(BuildContext context) async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -150,6 +153,7 @@ class _incidentReportState extends State<incidentReport> {
     request.fields['description'] = description;
     request.fields['latitude'] = latitude;
     request.fields['longitude'] = longitude;
+    request.fields['type'] = type;
 
     // Add files using fromPath for better memory management
     for (var image in _selectedImages) {
@@ -196,6 +200,44 @@ class _incidentReportState extends State<incidentReport> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue[100], // Background color
+                  borderRadius: BorderRadius.circular(10)), // Rounded corners
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: DropdownButton<String>(
+                      value: type, // Current selected value
+                      hint: Text(
+                        'Select Role',
+                        style: TextStyle(
+                            color: Colors.grey[600]), // Hint text color
+                      ), // Hint text when no value is selected
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          if (newValue != null) {
+                            type = newValue;
+                          }// Update the selected value
+                        });
+                      },
+                      items:
+                          items.map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      isExpanded: true, // Expands to fill the width
+                      underline: Container(), // Remove the default underline
+                      icon: Icon(Icons.arrow_drop_down,
+                          color: Colors.grey[700]), // Custom dropdown icon
+                    ),
+                  ),
+                ),
+                SizedBox(
+                height: 15,
+              ),
           Column(
             children: [
               if (_selectedImages.isNotEmpty) ...[

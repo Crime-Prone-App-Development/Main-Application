@@ -13,48 +13,62 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'admin_side/home.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+import './userProvider.dart';
+import './notifications_service.dart';
+import 'reportsProvider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(AppLoader());
+  await NotificationService().initialize();
+  runApp(MultiProvider(
+    providers : [
+      ChangeNotifierProvider(create : (_) => UserProvider()),
+      ChangeNotifierProvider(create: (_) => ReportsProvider())
+    ],
+    child : AppLoader()
+  ));
   await dotenv.load(fileName: ".env"); // Show a loader while checking the token
 }
 
-Future<void> _connectToSocket() async {
-  String? token = await TokenHelper.getToken();
-  // Establish socket connection
-  IO.Socket socket = IO.io(
-      'https://patrollingappbackend.onrender.com',
-      IO.OptionBuilder().setTransports(['websocket']) // for Flutter or Dart VM
-          // .disableAutoConnect()  // disable auto-connection
-          .setExtraHeaders({'authorization': "$token"}) // optional
-          .build());
-  socket.onConnect((_) {
-    print('Connected to Socket Server');
-  });
+// Future<void> _connectToSocket() async {
+//   String? token = await TokenHelper.getToken();
+//   // Establish socket connection
+//   IO.Socket socket = IO.io(
+//       'https://patrollingappbackend.onrender.com',
+//       IO.OptionBuilder().setTransports(['websocket']) // for Flutter or Dart VM
+//           // .disableAutoConnect()  // disable auto-connection
+//           .setExtraHeaders({'authorization': "$token"}) // optional
+//           .build());
+//   socket.onConnect((_) {
+//     print('Connected to Socket Server');
+//   });
 
-  socket.on("selfie_prompt", (msg) {
-    print(msg);
-  });
+//   socket.on("selfie_prompt", (msg) {
+//     print(msg);
+//   });
 
-  socket.onDisconnect((_) {
-    print('Disconnected from server');
-  });
+//   socket.onDisconnect((_) {
+//     print('Disconnected from server');
+//   });
 
-  socket.on('locatioLogged', (msg) {
-    print(msg);
-  });
+//   socket.on('locatioLogged', (msg) {
+//     print(msg);
+//   });
 
-  Timer.periodic(Duration(seconds: 4), (timer) async {
-    Position position = await _getCurrentLocation();
-    // Send location data to the server using Socket.IO
-    socket.emit('locationUpdate', {
-      'latitude': position.latitude,
-      'longitude': position.longitude,
-    });
-    print('Background Location: ${position.latitude}, ${position.longitude}');
-  });
-}
+//   Timer.periodic(Duration(seconds: 4), (timer) async {
+//     Position position = await _getCurrentLocation();
+//     // Send location data to the server using Socket.IO
+//     socket.emit('locationUpdate', {
+//       'latitude': position.latitude,
+//       'longitude': position.longitude,
+//     });
+
+    
+//     print('Background Location: ${position.latitude}, ${position.longitude}');
+//   });
+// }
 
 Future<Position> _getCurrentLocation() async {
   bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -86,7 +100,7 @@ class _AppLoaderState extends State<AppLoader> {
   @override
   void initState() {
     super.initState();
-    _connectToSocket(); // moved here
+  // _connectToSocket(); // moved here
   }
 
   @override

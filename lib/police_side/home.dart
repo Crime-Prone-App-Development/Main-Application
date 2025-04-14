@@ -1,3 +1,7 @@
+import 'dart:io';
+// import 'dart:nativewrappers/_internal/vm/lib/ffi_allocation_patch.dart';
+// import 'dart:nativewrappers/_internal/vm/lib/math_patch.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,6 +16,17 @@ import 'package:mainapp/police_side/uploadImage.dart';
 import 'package:mainapp/token_helper.dart';
 import 'assignmentPage.dart';
 
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'dart:convert';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+
+import '../userProvider.dart';
+// import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+
+enum AlertType { panic, alert }
+
 class homePage extends StatefulWidget {
   const homePage({super.key});
 
@@ -20,6 +35,8 @@ class homePage extends StatefulWidget {
 }
 
 class _homePageState extends State<homePage> {
+  Position? currentLocation;
+  StreamSubscription? subscription;
   int _selectedIndex = 0;
   bool incident = false;
   bool uploadImage = false;
@@ -28,9 +45,125 @@ class _homePageState extends State<homePage> {
 
   late List userData = [];
 
+  String? alertDescription;
+  AlertType? selectedAlertType;
+
+  IO.Socket? socket;
+
+  locationPermission({VoidCallback? inSuccess}) async {
+    /// this function is responsible for asking permission and checking whether user have granted or
+    bool serviceEnabled;
+    LocationPermission permission;
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+    }
+    permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.openAppSettings();
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+      return Future.error('Location permissions are permanently denied');
+    }
+    ;
+    {
+      inSuccess?.call();
+    }
+  }
+
+  void startListeningLocation() {
+    locationPermission(
+      inSuccess: () async {
+        subscription = Geolocator.getPositionStream(
+                locationSettings: Platform.isAndroid
+                    ? AndroidSettings(
+                        foregroundNotificationConfig:
+                            const ForegroundNotificationConfig(
+                                notificationTitle:
+                                    'location fetching in background',
+                                notificationText:
+                                    "current location is fetched in background",
+                                enableWakeLock: true))
+                    : AppleSettings(
+                        accuracy: LocationAccuracy.high,
+                        activityType: ActivityType.fitness,
+                        pauseLocationUpdatesAutomatically: true,
+                        showBackgroundLocationIndicator: false,
+                      ))
+            .listen((event) async {
+          setState(() {
+            currentLocation = event;
+            // print(currentLocation);
+          });
+        });
+      },
+    );
+  }
+
+  Future<void> _connectToSocket() async {
+    String? token = await TokenHelper.getToken();
+    // Establish socket connection
+    socket = IO.io(
+        'https://patrollingappbackend.onrender.com',
+        IO.OptionBuilder()
+            .setTransports(['websocket']) // for Flutter or Dart VM
+            // .disableAutoConnect()  // disable auto-connection
+            .setExtraHeaders({'authorization': "$token"}) // optional
+            .build());
+    
+    socket?.onConnect((_) {
+      print('Connected to Socket Server');
+    });
+
+    socket?.on("selfie_prompt", (msg) {
+      print(msg);
+    });
+
+    socket?.onDisconnect((_) {
+      print('Disconnected from server');
+    });
+
+    socket?.on('locatioLogged', (msg) {
+      print(msg);
+    });
+
+    Timer.periodic(Duration(seconds: 4), (timer) async {
+      startListeningLocation();
+      // Send location data to the server using Socket.IO
+      socket?.emit('locationUpdate', {
+        'latitude': currentLocation?.latitude,
+        'longitude': currentLocation?.longitude,
+      });
+
+      print(
+          'Background Location: ${currentLocation?.latitude}, ${currentLocation?.longitude}');
+    });
+  }
+
+  Future<void> _emitEvent(String event, Map<String, dynamic> data, String roomId) async{
+    if (socket == null || !socket!.connected) {
+    await _connectToSocket();
+  }
+  
+  print(event);
+  print(data);
+  socket?.emit(event, {...data, 'room': roomId});
+
+  }
+
   @override
   void initState() {
     super.initState();
+    _connectToSocket();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<UserProvider>().fetchUser();
+    });
+    startListeningLocation();
     _initializeUserData();
   }
 
@@ -39,6 +172,117 @@ class _homePageState extends State<homePage> {
     setState(() {
       userData = data; // Update the state with the fetched data
     });
+  }
+
+  void _showAlertDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Send Emergency Alert'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButton<AlertType>(
+                    value: selectedAlertType,
+                    hint: Text('Select alert type'),
+                    items: [
+                      DropdownMenuItem(
+                        value: AlertType.panic,
+                        child: Text('Panic - Immediate Assistance'),
+                      ),
+                      DropdownMenuItem(
+                        value: AlertType.alert,
+                        child: Text('Alert - Report Incident'),
+                      ),
+                    ],
+                    onChanged: (AlertType? value) {
+                      setState(() {
+                        selectedAlertType = value;
+                        if (value == AlertType.panic) {
+                          alertDescription =
+                              'PANIC ALERT - IMMEDIATE ASSISTANCE NEEDED';
+                        }
+                      });
+                    },
+                  ),
+                  if (selectedAlertType == AlertType.alert)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Description',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (value) {
+                          alertDescription = value;
+                        },
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                ElevatedButton(
+                  child: Text('Send'),
+                  onPressed: () async {
+                    if (selectedAlertType == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please select an alert type')),
+                      );
+                      return;
+                    }
+
+                    if (selectedAlertType == AlertType.alert &&
+                        (alertDescription == null ||
+                            alertDescription!.isEmpty)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please enter a description')),
+                      );
+                      return;
+                    }
+
+                    _sendAlertToServer();
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _sendAlertToServer() async{
+    // Get current location (you'll need the geolocator package)
+    // Position position = await Geolocator.getCurrentPosition();
+    // String location = '${position.latitude},${position.longitude}';
+
+    // For now, using a placeholder location
+    String location = 'Unknown location';
+
+    // Emit the alert to the server
+    await _emitEvent('emergency-alert', {
+      'type': selectedAlertType == AlertType.panic ? 'panic' : 'alert',
+      'userId': userData[1],
+      'userName': userData[2],
+      'location': location,
+      'description': alertDescription,
+      'timestamp': DateTime.now().toIso8601String(),
+    }, 'admin');
+
+    // Show confirmation to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Emergency alert sent! Help is on the way!')),
+    );
   }
 
   @override
@@ -80,7 +324,27 @@ class _homePageState extends State<homePage> {
       ),
       body: Column(
         children: [
-          Appbar0(),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, child) {
+              if (userProvider.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (userProvider.error != null) {
+                return Center(child: Text(userProvider.error!));
+              }
+
+              if (userProvider.user == null) {
+                return const Center(child: Text('No user data'));
+              }
+              // setState(() {
+              //   userData = userProvider.user ?? [];
+              // });
+              return Appbar0(
+                userData: userProvider.user ?? [],
+              ); // Default return statement
+            },
+          ),
           SizedBox(height: 20),
           Expanded(
             child: SingleChildScrollView(
@@ -200,8 +464,9 @@ class _homePageState extends State<homePage> {
                 child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: userData.isEmpty ? [Text("N/A"), Text("N/A")] :
-                    [Text(userData[2]), Text(userData[3])]),
+                    children: userData.isEmpty
+                        ? [Text("N/A"), Text("N/A")]
+                        : [Text(userData[2]), Text(userData[3])]),
               ),
             ),
           ),
@@ -343,18 +608,24 @@ class _homePageState extends State<homePage> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  minimumSize: Size(170, 45),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+              onPressed: () {
+                // Reset previous selections
+                selectedAlertType = null;
+                alertDescription = null;
+                _showAlertDialog(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                minimumSize: Size(170, 45),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  "Panic Button",
-                  style: TextStyle(fontSize: 20, color: Colors.black),
-                )),
+              ),
+              child: Text(
+                "Alert Button",
+                style: TextStyle(fontSize: 20, color: Colors.black),
+              ),
+            ),
             SizedBox(height: 10),
             ElevatedButton(
                 onPressed: () {
@@ -375,25 +646,25 @@ class _homePageState extends State<homePage> {
                 ))
           ],
         ),
-        SizedBox(height: 10),
-        ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => DailyReportPage()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color.fromARGB(255, 16, 213, 85),
-              minimumSize: Size(370, 45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              "Incident Report",
-              style: TextStyle(fontSize: 20, color: Colors.black),
-            ))
+        // SizedBox(height: 10),
+        // ElevatedButton(
+        //     onPressed: () {
+        //       Navigator.push(
+        //         context,
+        //         MaterialPageRoute(builder: (context) => DailyReportPage()),
+        //       );
+        //     },
+        //     style: ElevatedButton.styleFrom(
+        //       backgroundColor: Color.fromARGB(255, 16, 213, 85),
+        //       minimumSize: Size(370, 45),
+        //       shape: RoundedRectangleBorder(
+        //         borderRadius: BorderRadius.circular(10),
+        //       ),
+        //     ),
+        //     child: Text(
+        //       "Incident Report",
+        //       style: TextStyle(fontSize: 20, color: Colors.black),
+        //     ))
       ],
     );
   }

@@ -40,7 +40,7 @@ class _RegisterPageState extends State<RegisterPage> {
       'badgeNumber': badgeId,
       'phoneNumber': phone,
       'password': password,
-      'role': role,
+      'role': "GENERAL",
     };
 
     try {
@@ -153,43 +153,43 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
               ),
-              SizedBox(
-                height: 15,
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue[100], // Background color
-                  borderRadius: BorderRadius.circular(10)), // Rounded corners
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    child: DropdownButton<String>(
-                      value: role, // Current selected value
-                      hint: Text(
-                        'Select Role',
-                        style: TextStyle(
-                            color: Colors.grey[600]), // Hint text color
-                      ), // Hint text when no value is selected
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          if (newValue != null) {
-                            role = newValue;
-                          }// Update the selected value
-                        });
-                      },
-                      items:
-                          items.map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      isExpanded: true, // Expands to fill the width
-                      underline: Container(), // Remove the default underline
-                      icon: Icon(Icons.arrow_drop_down,
-                          color: Colors.grey[700]), // Custom dropdown icon
-                    ),
-                  ),
-                ),
+              // SizedBox(
+              //   height: 15,
+              // ),
+              // Container(
+              //   decoration: BoxDecoration(
+              //     color: Colors.blue[100], // Background color
+              //     borderRadius: BorderRadius.circular(10)), // Rounded corners
+              //     child: Padding(
+              //       padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              //       child: DropdownButton<String>(
+              //         value: role, // Current selected value
+              //         hint: Text(
+              //           'Select Role',
+              //           style: TextStyle(
+              //               color: Colors.grey[600]), // Hint text color
+              //         ), // Hint text when no value is selected
+              //         onChanged: (String? newValue) {
+              //           setState(() {
+              //             if (newValue != null) {
+              //               role = newValue;
+              //             }// Update the selected value
+              //           });
+              //         },
+              //         items:
+              //             items.map<DropdownMenuItem<String>>((String value) {
+              //           return DropdownMenuItem<String>(
+              //             value: value,
+              //             child: Text(value),
+              //           );
+              //         }).toList(),
+              //         isExpanded: true, // Expands to fill the width
+              //         underline: Container(), // Remove the default underline
+              //         icon: Icon(Icons.arrow_drop_down,
+              //             color: Colors.grey[700]), // Custom dropdown icon
+              //       ),
+              //     ),
+              //   ),
               SizedBox(height: 120),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(

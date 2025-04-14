@@ -66,7 +66,7 @@ class _AssignmentPageState extends State<AssignmentPage> {
                         areaName: element['area']["name"] ?? '',
                         startDate: startDate,
                         endDate: endDate,
-                        isActive: isPastEndTime(element['endsAt'].toString()),
+                        isActive: !isPastEndTime(element['endsAt'].toString()),
                       );
                     }).toList(),
             ),
@@ -246,7 +246,7 @@ Widget _buildDateTimeBadge(DateTime startsAt, DateTime endsAt) {
           Assignments = responseData['data'] ?? [];
           AssignmentLoaded = true;
         });
-        print(responseData);
+        // print(responseData);
       }
     } catch (e) {
       // Handle any errors that occur during the request

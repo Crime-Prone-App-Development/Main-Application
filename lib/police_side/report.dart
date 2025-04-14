@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mainapp/police_side/appbar.dart';
 
+import 'package:provider/provider.dart';
+import 'package:mainapp/userProvider.dart';
+
 class DailyReportPage extends StatefulWidget {
   @override
   _DailyReportPageState createState() => _DailyReportPageState();
@@ -54,7 +57,7 @@ class _DailyReportPageState extends State<DailyReportPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Appbar0(),
+            Appbar0(userData: context.watch<UserProvider>().user ?? [],),
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Form(

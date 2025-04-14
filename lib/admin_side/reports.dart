@@ -1,175 +1,492 @@
 import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Reports App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const ReportsPage(),
-    );
-  }
-}
+import 'package:mainapp/token_helper.dart';
+import 'package:intl/intl.dart';
+import 'home.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ReportsPage extends StatefulWidget {
-  const ReportsPage({super.key});
+  final List<dynamic>? reports;
+  const ReportsPage({Key? key, this.reports}) : super(key: key);
 
   @override
   State<ReportsPage> createState() => _ReportsPageState();
 }
 
 class _ReportsPageState extends State<ReportsPage> {
-  String _selectedFilter = 'all';
-  final List<Map<String, dynamic>> _reports = [
-    {
-      'id': '1',
-      'guard': 'John Doe',
-      'date': '10/15/2023',
-      'type': 'Incident Report',
-      'status': 'Pending'
-    },
-    {
-      'id': '2',
-      'guard': 'Jane Smith',
-      'date': '10/14/2023',
-      'type': 'Daily Patrol Report',
-      'status': 'Reviewed'
-    },
-    {
-      'id': '3',
-      'guard': 'Mike Johnson',
-      'date': '10/13/2023',
-      'type': 'Incident Report',
-      'status': 'Pending'
-    },
-    {
-      'id': '4',
-      'guard': 'Sarah Connor',
-      'date': '10/12/2023',
-      'type': 'Equipment Report',
-      'status': 'Reviewed'
-    },
-  ];
+  String adminName = '';
+  List<dynamic> reports = [];
+  List<dynamic> filteredReports = [];
+
+  // Filtering variables
+  String searchQuery = '';
+  String statusFilter = 'All';
+  DateTimeRange? dateRange;
+
+  // Statistics
+  int totalReports = 0;
+  int pendingReports = 0;
+  int reviewedReports = 0;
+
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    reports = widget.reports ?? [];
+    filteredReports = List.from(reports);
+    _calculateStatistics();
+
+    if (widget.reports == null) {
+      _fetchReports();
+    }
+
+    TokenHelper.getUserData().then((userData) {
+      setState(() {
+        adminName = userData[2] ?? '';
+      });
+    });
+  }
+
+  Future<void> _fetchReports() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String? token = await TokenHelper.getToken();
+      if (token == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/report'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${token}'
+        },
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        setState(() {
+          reports = responseData['data'] ?? [];
+          filteredReports = List.from(reports);
+          _calculateStatistics();
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to fetch reports'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _calculateStatistics() {
+    setState(() {
+      totalReports = reports.length;
+      pendingReports = reports.where((r) => r['isReviewed'] == false).length;
+      reviewedReports = reports.where((r) => r['isReviewed'] == true).length;
+    });
+  }
+
+  String _formatReportDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM d, h:mm a').format(date);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String _shortenId(String id) {
+    if (id.length <= 6) return id;
+    return '${id.substring(0, 3)}...${id.substring(id.length - 3)}';
+  }
+
+  void _applyFilters() {
+    setState(() {
+      filteredReports = reports.where((report) {
+        // Search filter
+        final matchesSearch = report['user']['name']
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase()) ||
+            report['_id']
+                .toString()
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase()) ||
+            report['type']
+                .toString()
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase());
+
+        // Status filter - now properly checks isReviewed
+        final matchesStatus = statusFilter == 'All' ||
+            (statusFilter == 'Reviewed' && report['isReviewed'] == true) ||
+            (statusFilter == 'Pending' && report['isReviewed'] == false);
+
+        // Date range filter
+        bool matchesDate = true;
+        if (dateRange != null) {
+          try {
+            final reportDate = DateTime.parse(report['createdAt']);
+            matchesDate = reportDate.isAfter(dateRange!.start) &&
+                reportDate.isBefore(dateRange!.end);
+          } catch (e) {
+            matchesDate = false;
+          }
+        }
+
+        return matchesSearch && matchesStatus && matchesDate;
+      }).toList();
+
+      // Update statistics for the filtered reports - now using isReviewed
+      totalReports = filteredReports.length;
+      pendingReports =
+          filteredReports.where((r) => r['isReviewed'] == false).length;
+      reviewedReports =
+          filteredReports.where((r) => r['isReviewed'] == true).length;
+    });
+  }
+
+  Future<void> _selectDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      initialDateRange: dateRange,
+    );
+
+    if (picked != null) {
+      setState(() {
+        dateRange = picked;
+        _applyFilters();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reports'),
-        centerTitle: true,
-        elevation: 0,
+        backgroundColor: Colors.blue[800],
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchReports, // Add this
+            tooltip: 'Refresh reports',
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_alt),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Filter Reports',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Status Filter
+                            DropdownButtonFormField<String>(
+                              value: statusFilter,
+                              items: ['All', 'Pending', 'Reviewed']
+                                  .map((status) => DropdownMenuItem(
+                                        value: status,
+                                        child: Text(status),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  statusFilter = value!;
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Status',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Date Range Filter
+                            ListTile(
+                              title: const Text('Date Range'),
+                              subtitle: Text(dateRange == null
+                                  ? 'Select date range'
+                                  : '${DateFormat('MMM d, y').format(dateRange!.start)} - ${DateFormat('MMM d, y').format(dateRange!.end)}'),
+                              trailing: const Icon(Icons.calendar_today),
+                              onTap: () => _selectDateRange(context),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Apply Filters Button
+                            ElevatedButton(
+                              onPressed: () {
+                                _applyFilters();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Apply Filters'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Admin Name: [Admin Full Name]',
-              style: TextStyle(fontSize: 16),
+            // Admin Info
+            Text(
+              'Admin Name: $adminName',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 24),
+
+            // Overview Section
             const Text(
               'Overview Section',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text('Total Reports: 4'),
-            const Text('Pending Reports: 2'),
-            const Text('Reviewed Reports: 2'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatCard(
+                    'Total Reports', totalReports.toString(), Colors.blue),
+                _buildStatCard('Pending Reports', pendingReports.toString(),
+                    Colors.orange),
+                _buildStatCard('Reviewed Reports', reviewedReports.toString(),
+                    Colors.green),
+              ],
+            ),
             const SizedBox(height: 24),
+
+            // Reports List Section
             const Text(
               'Reports List',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+
+            // Search Bar
             TextField(
               decoration: InputDecoration(
-                hintText: 'Search Reports',
+                hintText: 'Search by Officer or Report Type',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
               ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                  _applyFilters();
+                });
+              },
             ),
             const SizedBox(height: 16),
+
+            // Filter Chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip('All Reports', 'all'),
+                  _buildFilterChip('All Reports', statusFilter == 'All', () {
+                    setState(() {
+                      statusFilter = 'All';
+                      _applyFilters();
+                    });
+                  }),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Pending', 'pending'),
+                  _buildFilterChip('Pending', statusFilter == 'Pending', () {
+                    setState(() {
+                      statusFilter = 'Pending';
+                      _applyFilters();
+                    });
+                  }),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Reviewed', 'reviewed'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Custom Filter', 'custom'),
+                  _buildFilterChip('Reviewed', statusFilter == 'Reviewed', () {
+                    setState(() {
+                      statusFilter = 'Reviewed';
+                      _applyFilters();
+                    });
+                  }),
+                  if (dateRange != null) ...[
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Date Range', true, () {
+                      _selectDateRange(context);
+                    }),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            LayoutBuilder(builder: (context, constraints) {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: DataTable(
-                    columnSpacing: 20,
-                    columns: const [
-                      DataColumn(
-                          label: Text('Report ID',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Guard Name',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Date Submitted',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Report Type',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Status',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+
+            // Reports Table
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                showCheckboxColumn: false,
+                columns: const [
+                  DataColumn(label: Text('Report ID')),
+                  DataColumn(label: Text('Officer Name')),
+                  DataColumn(label: Text('Date Submitted')),
+                  DataColumn(label: Text('Report Type')),
+                  DataColumn(label: Text('Status')),
+                ],
+                rows: filteredReports.map((report) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(_shortenId(report["_id"].toString()))),
+                      DataCell(Text(report['user']['name'])),
+                      DataCell(Text(_formatReportDate(report['createdAt']))),
+                      DataCell(Text(report['type'] ?? "Not defined")),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: !report['isReviewed']
+                                ? Colors.orange.withOpacity(0.2)
+                                : Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            report['isReviewed'] ? "Reviewed" : "Pending",
+                            style: TextStyle(
+                              color: !report['isReviewed']
+                                  ? Colors.orange
+                                  : Colors.green,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
-                    rows: _reports
-                        .map((report) => DataRow(
-                              cells: [
-                                DataCell(Text(report['id'])),
-                                DataCell(Text(report['guard'])),
-                                DataCell(Text(report['date'])),
-                                DataCell(Text(report['type'])),
-                                DataCell(Text(report['status'])),
-                              ],
-                            ))
-                        .toList(),
-                  ),
-                ),
-              );
-            }),
+                    onSelectChanged: (selected) {
+                      if (selected == true) {
+                        _navigateToReportDetails(context, report);
+                        _fetchReports();
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
+  Widget _buildStatCard(String title, String value, Color color) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(
+      String label, bool selected, VoidCallback onSelected) {
     return FilterChip(
       label: Text(label),
-      selected: _selectedFilter == value,
-      onSelected: (selected) {
-        setState(() {
-          _selectedFilter = selected ? value : 'all';
-        });
-      },
+      selected: selected,
+      onSelected: (bool value) => onSelected(),
+      selectedColor: Colors.blue.withOpacity(0.2),
+      checkmarkColor: Colors.blue,
+      labelStyle: TextStyle(
+        color: selected ? Colors.blue : Colors.black,
+      ),
+    );
+  }
+
+  void _navigateToReportDetails(BuildContext context, dynamic report) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => IncidentReportDetails(
+          id: report["_id"].toString(),
+          description: report["description"],
+          latitude: report["location"]["coordinates"][0]["latitude"],
+          longitude: report["location"]["coordinates"][0]["longitude"],
+          imageUrls: report["images"],
+          reportDate: _formatReportDate(report["createdAt"]),
+          reviewStatus: report["isReviewed"],
+        ),
+      ),
     );
   }
 }

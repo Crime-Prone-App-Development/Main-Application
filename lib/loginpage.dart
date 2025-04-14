@@ -58,12 +58,14 @@ class _LoginPageState extends State<LoginPage> {
           String? username = responseData['data']['user']['name'];
           String? userPhone = responseData['data']['user']['phoneNumber'];
           String? userRole = responseData['data']['user']['role'];
+          String? badgeId = responseData['data']['user']['badgeNumber'];
 
           if (token != null &&
               userId != null &&
               username != null &&
               userPhone != null &&
-              userRole != null) {
+              userRole != null &&
+              badgeId != null) {
             setState(() {
               homePageLoading = true;
             });
@@ -72,7 +74,9 @@ class _LoginPageState extends State<LoginPage> {
                 userId: userId,
                 userName: username,
                 userPhone: userPhone,
-                userRole: userRole);
+                userRole: userRole,
+                badgeId: badgeId,
+                );
 
             setState(() {
               homePageLoading = false;
@@ -86,8 +90,8 @@ class _LoginPageState extends State<LoginPage> {
 
           homePageLoading
               ? CircularProgressIndicator()
-              : Navigator.pushReplacementNamed(
-                  context, userRole == 'ADMIN' ? '/adminHome' : '/home');
+              : Navigator.pushNamedAndRemoveUntil(
+                  context, userRole == 'ADMIN' ? '/adminHome' : '/home', (route) => false);
         } else {
           // If the server did not return a 200 OK response,
           // show an error message.

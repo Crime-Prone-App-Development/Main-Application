@@ -45,6 +45,9 @@ class _AdminPageState extends State<AdminPage> {
   LatLng? _coordinates;
   bool _isLoading = false;
 
+
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 @override
   void initState() {
     super.initState();
@@ -77,7 +80,7 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _showAddAreaDialog(BuildContext context) async {
   return showDialog(
     context: context,
-    builder: (context) {
+    builder: (dialogContext) {
       return AlertDialog(
         title: Text("Add New Area"),
         content: SingleChildScrollView(
@@ -132,20 +135,22 @@ class _AdminPageState extends State<AdminPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () async {
               if (_newAreaNameController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                scaffoldMessengerKey.currentState?.showSnackBar(
                   SnackBar(content: Text('Please enter area name')),
                 );
                 return;
               }
               
-              await _createNewArea(context);
-              Navigator.pop(context);
+              await _createNewArea(dialogContext);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
             },
             child: Text("Add Area"),
           ),
@@ -155,48 +160,70 @@ class _AdminPageState extends State<AdminPage> {
   );
 }
 Future<void> _createNewArea(BuildContext context) async {
+  if (!mounted) return; 
+
   String? token = await TokenHelper.getToken();
   await _searchLocation();
   print(_coordinates);
+
+  if (!mounted) return;
+  
+  if (_coordinates == null) {
+    scaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text('Could not find coordinates for this location')),
+    );
+    return;
+  }
+
   try {
     final response = await http.post(
       Uri.parse('https://patrollingappbackend.onrender.com/api/v1/crime-areas'),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${token}'
+        'Authorization': 'Bearer $token'
       },
       body: json.encode({
-        'name': _newAreaNameController.text,
-        'lon': _coordinates?.longitude ?? 0.0,
-        'lat' : _coordinates?.latitude ?? 0.0,
-        'areaType' : "Point",
+        'name': _newAreaNameController.text,        
         'description': _newAreaDescriptionController.text,
+        'areaType': "Point",
+        'long': _coordinates!.longitude.toString(),
+        'lat': _coordinates!.latitude.toString(),
         'crimeRate': _crimeRateValue,
       }),
     );
-    print(response);
+    
+    print(response.body);
+    
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = json.decode(response.body);
-      setState(() {
-        selectedArea = responseData['data']['_id']; // Use the ID as selected area
-        areas.add(responseData['data']['_id']); // Add to dropdown list
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Area added successfully!')),
-      );
+      if (mounted) {
+        setState(() {
+          selectedArea = responseData['data']['_id'];
+          areas.add(responseData['data']);
+        });
+        scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(content: Text('Area added successfully!')),
+        );
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        scaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text('Failed to add area: ${response.body}')),
       );
+      }
     }
   } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      scaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text('Error adding area: $e')),
     );
+    }
   } finally {
-    _newAreaNameController.clear();
-    _newAreaDescriptionController.clear();
-    _newAreaCrimeRateController.clear();
+    if (mounted) {
+      _newAreaNameController.clear();
+      _newAreaDescriptionController.clear();
+      _newAreaCrimeRateController.clear();
+    }
   }
 }
 
@@ -351,72 +378,75 @@ Future<void> _createNewArea(BuildContext context) async {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Work Assignment"),
-        centerTitle: true,
-        elevation: 0,
-        foregroundColor: Colors.white,
-        backgroundColor: const Color.fromARGB(255, 1, 32, 96),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    return ScaffoldMessenger(
+      key: scaffoldMessengerKey,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Work Assignment"),
+          centerTitle: true,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          backgroundColor: const Color.fromARGB(255, 1, 32, 96),
+        ),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Assignment Details",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      _buildOfficerSelection(),
+                      SizedBox(height: 16),
+                      _buildDateTimeFields(),
+                      SizedBox(height: 16),
+                      _buildAreaDropdown(context),
+                    ],
+                  ),
+                ),
               ),
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Assignment Details",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade800,
+              SizedBox(height: 24),
+              Center(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => assignWork(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade800,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    SizedBox(height: 16),
-                    _buildOfficerSelection(),
-                    SizedBox(height: 16),
-                    _buildDateTimeFields(),
-                    SizedBox(height: 16),
-                    _buildAreaDropdown(),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            Center(
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => assignWork(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade800,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    "CREATE ASSIGNMENT",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    child: Text(
+                      "CREATE ASSIGNMENT",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -545,7 +575,7 @@ Future<void> _createNewArea(BuildContext context) async {
     );
   }
 
-  Widget _buildAreaDropdown() {
+  Widget _buildAreaDropdown(BuildContext context) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [

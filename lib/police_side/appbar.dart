@@ -3,27 +3,29 @@ import 'package:mainapp/police_side/notification.dart';
 import 'package:mainapp/token_helper.dart';
 
 class Appbar0 extends StatefulWidget {
-  const Appbar0({super.key});
+
+  final List<dynamic> userData;
+  const Appbar0({super.key, required this.userData});
 
   @override
   State<Appbar0> createState() => _Appbar0State();
 }
 
 class _Appbar0State extends State<Appbar0> {
-  late List userData = [];
+  late List userData = widget.userData;
 
   @override
   void initState() {
     super.initState();
-    _initializeUserData();
+    // _initializeUserData();
   }
 
-  Future<void> _initializeUserData() async {
-    List data = await TokenHelper.getUserData();
-    setState(() {
-      userData = data; // Update the state with the fetched data
-    });
-  }
+  // Future<void> _initializeUserData() async {
+  //   List data = await TokenHelper.getUserData();
+  //   setState(() {
+  //     userData = data; // Update the state with the fetched data
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {

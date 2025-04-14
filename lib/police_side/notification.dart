@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+// import 'package:path/path.dart';
+import 'package:provider/provider.dart';
+import 'package:mainapp/userProvider.dart';
 
 class NotificationsScreen extends StatefulWidget {
   @override
@@ -6,8 +10,9 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  String _guardName = "John Doe";
-  String _currentDate = "October 15, 2023";
+  List<dynamic> userInfo = [];
+  String _guardName = "";
+  String _currentDate = DateFormat('MMM d, yyyy').format(DateTime.now());
   String _selectedFilter = "All";
   final List<Map<String, String>> _notifications = [
     {
@@ -31,6 +36,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // Add more notifications as needed
   ];
 
+  @override
+  void initState(){
+    super.initState();
+    setState(() {
+      userInfo = context.read<UserProvider>().user!;
+      _guardName = userInfo[2];
+    });
+  }
+    
   @override
   Widget build(BuildContext context) {
     return Scaffold(
