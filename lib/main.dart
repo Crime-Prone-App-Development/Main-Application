@@ -18,55 +18,94 @@ import 'package:flutter/foundation.dart';
 import './userProvider.dart';
 import './notifications_service.dart';
 import 'reportsProvider.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // await initializeService();
   await NotificationService().initialize();
   runApp(MultiProvider(
     providers : [
       ChangeNotifierProvider(create : (_) => UserProvider()),
-      ChangeNotifierProvider(create: (_) => ReportsProvider())
+      // ChangeNotifierProvider(create: (_) => ReportsProvider()),
+      // ChangeNotifierProxyProvider<UserProvider, AssignmentProvider>(
+      //   create: (context) => AssignmentProvider(),
+      //   update: (context, userProvider, assignmentProvider) {
+      //     assignmentProvider?.updateUserProvider(userProvider);
+      //     return assignmentProvider ?? AssignmentProvider();
+      //   },
+      // ),
     ],
     child : AppLoader()
   ));
   await dotenv.load(fileName: ".env"); // Show a loader while checking the token
 }
 
-// Future<void> _connectToSocket() async {
-//   String? token = await TokenHelper.getToken();
-//   // Establish socket connection
-//   IO.Socket socket = IO.io(
-//       'https://patrollingappbackend.onrender.com',
-//       IO.OptionBuilder().setTransports(['websocket']) // for Flutter or Dart VM
-//           // .disableAutoConnect()  // disable auto-connection
-//           .setExtraHeaders({'authorization': "$token"}) // optional
-//           .build());
-//   socket.onConnect((_) {
-//     print('Connected to Socket Server');
-//   });
 
-//   socket.on("selfie_prompt", (msg) {
-//     print(msg);
+void startBackgroundService() {
+  final service = FlutterBackgroundService();
+  service.startService();
+}
+
+void stopBackgroundService() {
+  final service = FlutterBackgroundService();
+  service.invoke("stop");
+}
+
+// Future<void> initializeService() async {
+//   final service = FlutterBackgroundService();
+
+//   await service.configure(
+//     iosConfiguration: IosConfiguration(
+//       autoStart: true,
+//       onForeground: onStart,
+//       onBackground: onIosBackground,
+//     ),
+//     androidConfiguration: AndroidConfiguration(
+//       autoStart: true,
+//       onStart: onStart,
+//       isForegroundMode: false,
+//       autoStartOnBoot: true,
+//     ),
+//   );
+// }
+
+// @pragma('vm:entry-point')
+// Future<bool> onIosBackground(ServiceInstance service) async {
+//   WidgetsFlutterBinding.ensureInitialized();
+//   DartPluginRegistrant.ensureInitialized();
+
+//   return true;
+// }
+
+// @pragma('vm:entry-point')
+// void onStart(ServiceInstance service) async {
+//   final socket = IO.io("your-server-url", <String, dynamic>{
+//     'transports': ['websocket'],
+//     'autoConnect': true,
+//   });
+//   socket.onConnect((_) {
+//     print('Connected. Socket ID: ${socket.id}');
+//     // Implement your socket logic here
+//     // For example, you can listen for events or send data
 //   });
 
 //   socket.onDisconnect((_) {
-//     print('Disconnected from server');
+//     print('Disconnected');
+//   });
+//    socket.on("event-name", (data) {
+//     //do something here like pushing a notification
+//   });
+//   service.on("stop").listen((event) {
+//     service.stopSelf();
+//     print("background process is now stopped");
 //   });
 
-//   socket.on('locatioLogged', (msg) {
-//     print(msg);
-//   });
+//   service.on("start").listen((event) {});
 
-//   Timer.periodic(Duration(seconds: 4), (timer) async {
-//     Position position = await _getCurrentLocation();
-//     // Send location data to the server using Socket.IO
-//     socket.emit('locationUpdate', {
-//       'latitude': position.latitude,
-//       'longitude': position.longitude,
-//     });
-
-    
-//     print('Background Location: ${position.latitude}, ${position.longitude}');
+//   Timer.periodic(const Duration(seconds: 1), (timer) {
+//     socket.emit("event-name", "your-message");
+//     print("service is successfully running ${DateTime.now().second}");
 //   });
 // }
 

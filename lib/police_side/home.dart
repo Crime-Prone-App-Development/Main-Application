@@ -40,7 +40,6 @@ class _homePageState extends State<homePage> {
   int _selectedIndex = 0;
   bool incident = false;
   bool uploadImage = false;
-  bool scan = false;
   bool checkpoint = false;
 
   late List userData = [];
@@ -115,7 +114,7 @@ class _homePageState extends State<homePage> {
             // .disableAutoConnect()  // disable auto-connection
             .setExtraHeaders({'authorization': "$token"}) // optional
             .build());
-    
+
     socket?.onConnect((_) {
       print('Connected to Socket Server');
     });
@@ -132,7 +131,7 @@ class _homePageState extends State<homePage> {
       print(msg);
     });
 
-    Timer.periodic(Duration(seconds: 4), (timer) async {
+    Timer.periodic(Duration(seconds: 10), (timer) async {
       startListeningLocation();
       // Send location data to the server using Socket.IO
       socket?.emit('locationUpdate', {
@@ -140,20 +139,18 @@ class _homePageState extends State<homePage> {
         'longitude': currentLocation?.longitude,
       });
 
-      print(
-          'Background Location: ${currentLocation?.latitude}, ${currentLocation?.longitude}');
+      // print(
+      //     'Background Location: ${currentLocation?.latitude}, ${currentLocation?.longitude}');
     });
   }
 
-  Future<void> _emitEvent(String event, Map<String, dynamic> data, String roomId) async{
+  Future<void> _emitEvent(
+      String event, Map<String, dynamic> data, String roomId) async {
     if (socket == null || !socket!.connected) {
-    await _connectToSocket();
-  }
-  
-  print(event);
-  print(data);
-  socket?.emit(event, {...data, 'room': roomId});
+      await _connectToSocket();
+    }
 
+    socket?.emit(event, {...data, 'room': roomId});
   }
 
   @override
@@ -261,23 +258,47 @@ class _homePageState extends State<homePage> {
     );
   }
 
-  void _sendAlertToServer() async{
+  Future<Position> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw 'Location services are disabled';
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw 'Location permissions are denied';
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw 'Location permissions are permanently denied';
+    }
+
+    return await Geolocator.getCurrentPosition();
+  }
+
+  void _sendAlertToServer() async {
     // Get current location (you'll need the geolocator package)
     // Position position = await Geolocator.getCurrentPosition();
     // String location = '${position.latitude},${position.longitude}';
 
     // For now, using a placeholder location
-    String location = 'Unknown location';
+    Position location = await _getCurrentLocation();
 
     // Emit the alert to the server
-    await _emitEvent('emergency-alert', {
-      'type': selectedAlertType == AlertType.panic ? 'panic' : 'alert',
-      'userId': userData[1],
-      'userName': userData[2],
-      'location': location,
-      'description': alertDescription,
-      'timestamp': DateTime.now().toIso8601String(),
-    }, 'admin');
+    await _emitEvent(
+        'emergency-alert',
+        {
+          'type': selectedAlertType == AlertType.panic ? 'panic' : 'alert',
+          'userId': userData[1],
+          'userName': userData[2],
+          'location': location,
+          'description': alertDescription,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+        'admin');
 
     // Show confirmation to user
     ScaffoldMessenger.of(context).showSnackBar(
@@ -297,7 +318,6 @@ class _homePageState extends State<homePage> {
             _selectedIndex = index;
             incident = false;
             uploadImage = false;
-            scan = false;
             checkpoint = false;
           });
         },
@@ -384,18 +404,9 @@ class _homePageState extends State<homePage> {
                     },
                     uploadImage: uploadImage,
                   )
-            : scan
-                ? scanCheckpoint(
-                    scan: scan,
-                    onUpdateScan: (bool) {
-                      setState(() {
-                        scan = false;
-                      });
-                    },
-                  )
-                : checkpoint
-                    ? CheckpointsPage()
-                    : home();
+            : checkpoint
+                ? CheckpointsPage()
+                : home();
       case 1:
         return ProfilePage();
       case 2:
@@ -410,7 +421,7 @@ class _homePageState extends State<homePage> {
     return Column(
       children: [
         _buildShiftCard(),
-        _buildCheckpointStatus(),
+        // _buildCheckpointStatus(),
         _buttons(),
         SizedBox(height: 20),
         // _buildGoogleMap(),
@@ -584,26 +595,6 @@ class _homePageState extends State<homePage> {
   Widget _buttons() {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  scan = true;
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xff1D3D9B),
-                minimumSize: Size(double.infinity, 77),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                "Click here to SCAN Checkpoint",
-                style: TextStyle(fontSize: 23, color: Colors.white),
-              )),
-        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [

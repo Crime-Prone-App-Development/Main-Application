@@ -3,9 +3,11 @@ import 'dart:ffi' as ffi;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mainapp/admin_side/alert.dart';
+import 'package:mainapp/admin_side/allAsssignments.dart';
 import 'package:mainapp/admin_side/checkpoints.dart';
 import 'package:mainapp/admin_side/patrolroutes.dart';
 import 'package:mainapp/admin_side/reports.dart';
+import 'package:mainapp/admin_side/route_map_page.dart';
 import 'package:mainapp/police_side/checkpoint.dart';
 import 'package:mainapp/police_side/home.dart';
 // import 'package:path/path.dart';
@@ -402,6 +404,9 @@ Future<void> _fetchAllUsers() async {
               _buildMenuItem('Assign Police Officers', Icons.people, AdminApp()),
               _buildMenuItem(
                   'Reports', Icons.assignment, ReportsPage(reports: allReports)),
+              _buildMenuItem("Assignments", Icons.assignment_ind_outlined, AssignmentsPage()),
+              // _buildMenuItem(
+              //     'test', Icons.assignment, RouteMapPage()),
             ],
           ),
         ),
@@ -1005,7 +1010,7 @@ LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
           allReports = responseData['data'] ?? [];
           reportsLoaded = true;
         });
-        print(responseData);
+        // print(responseData);
       }
     } catch (e) {
       // Handle any errors that occur during the request

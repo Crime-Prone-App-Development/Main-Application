@@ -88,34 +88,69 @@ class _incidentReportState extends State<incidentReport> {
   }
 
   Future<void> _pickImages(BuildContext context) async {
-    try {
-      final pickedFiles = await ImagePicker().pickMultiImage(
+  try {
+    final ImagePicker picker = ImagePicker();
+    
+    // Show dialog to choose source
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        actionsAlignment: MainAxisAlignment.center,
+        
+        title: Text("Select Image Source"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, ImageSource.camera),
+            child: Icon(Icons.camera_alt, size: 40,),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, ImageSource.gallery),
+            child: Icon(Icons.image, size: 40,),
+          ),
+        ],
+      ),
+    );
+
+    if (source == null) return; // User cancelled
+
+    List<XFile> pickedFiles = [];
+    
+    if (source == ImageSource.gallery) {
+      pickedFiles = await picker.pickMultiImage(
         maxWidth: 1800,
         maxHeight: 1800,
         imageQuality: 85,
       );
-
-      if (pickedFiles != null && pickedFiles.isNotEmpty) {
-        setState(() {
-          // Add this to update UI
-          int remainingSlots = 6 - _selectedImages.length;
-          if (remainingSlots > 0) {
-            int filesToAdd = pickedFiles.length > remainingSlots
-                ? remainingSlots
-                : pickedFiles.length;
-            for (int i = 0; i < filesToAdd; i++) {
-              _selectedImages.add(File(pickedFiles[i].path));
-            }
-          }
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Image picker error: $e')),
+    } else {
+      final file = await picker.pickImage(
+        source: source,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 85,
       );
-      print("Image picker error: $e");
+      if (file != null) pickedFiles.add(file);
     }
+
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        int remainingSlots = 6 - _selectedImages.length;
+        if (remainingSlots > 0) {
+          int filesToAdd = pickedFiles.length > remainingSlots
+              ? remainingSlots
+              : pickedFiles.length;
+          for (int i = 0; i < filesToAdd; i++) {
+            _selectedImages.add(File(pickedFiles[i].path));
+          }
+        }
+      });
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
+    print("Image picker error: $e");
   }
+}
 
   Future<void> _submitReport(BuildContext context) async {
     final String latitude = _latitudeController.text;

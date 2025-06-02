@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:mainapp/mapPointSelector.dart';
 import 'dart:async';
 import 'dart:convert';
 import '../token_helper.dart';
 import 'package:http/http.dart' as http;
 import './officersTable.dart';
-import '../addressCoordinates.dart';
+// import '../addressCoordinates.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(AdminApp());
@@ -34,250 +38,241 @@ class _AdminPageState extends State<AdminPage> {
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
 
+  final TextEditingController _durationController = TextEditingController();
+  LatLng? selectedLocation;
 
-  final TextEditingController _newAreaNameController = TextEditingController();
-  final TextEditingController _newAreaDescriptionController = TextEditingController();
-  final TextEditingController _newAreaCrimeRateController = TextEditingController();
-  bool _showNewAreaFields = false;
-  String? _crimeRateValue = 'low';
+  List<LatLng> selectedLocations = [];
 
-  final LocationService _locationService = LocationService(dotenv.env['MAPS_API_KEY'] ?? '');
-  LatLng? _coordinates;
-  bool _isLoading = false;
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
-
-  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
-
-@override
-  void initState() {
-    super.initState();
-    getAllAreas(context);
-  }
   void _removeOfficer(String name) {
     setState(() {
       officers.removeWhere((officer) => officer["name"] == name);
     });
   }
 
+  void _removeLocation(String Lat, String Long) {
+    setState(() {
+      selectedLocations.removeWhere((loc) =>
+          loc.latitude.toString() == Lat && loc.longitude.toString() == Long);
+    });
+  }
+
   void _updateOfficerIds() {
     setState(() {
-      officerIds = officers.map((officer) => officer["_id"].toString()).toList();
+      officerIds =
+          officers.map((officer) => officer["_id"].toString()).toList();
     });
   }
-  Future<void> _searchLocation() async {
-    setState(() {
-      _isLoading = true;
-      _coordinates = null;
-    });
+  // Future<void> _searchLocation() async {
+  //   setState(() {
+  //     _isLoading = true;
+  //     _coordinates = null;
+  //   });
 
-    final coordinates = await _locationService.getCoordinates(_newAreaNameController.text);
+  //   final coordinates = await _locationService.getCoordinates(_newAreaNameController.text);
 
-    setState(() {
-      _coordinates = coordinates;
-      _isLoading = false;
-    });
-  }
-  Future<void> _showAddAreaDialog(BuildContext context) async {
-  return showDialog(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title: Text("Add New Area"),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _newAreaNameController,
-                decoration: InputDecoration(
-                  labelText: "Area Name",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: _newAreaDescriptionController,
-                decoration: InputDecoration(
-                  labelText: "Description",
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _crimeRateValue,
-                decoration: InputDecoration(
-                  labelText: "Crime Rate",
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'low',
-                    child: Text("Low"),
-                  ),
-                  DropdownMenuItem(
-                    value: 'medium',
-                    child: Text("Medium"),
-                  ),
-                  DropdownMenuItem(
-                    value: 'high',
-                    child: Text("High"),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _crimeRateValue = value;
-                  });
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_newAreaNameController.text.isEmpty) {
-                scaffoldMessengerKey.currentState?.showSnackBar(
-                  SnackBar(content: Text('Please enter area name')),
-                );
-                return;
-              }
-              
-              await _createNewArea(dialogContext);
-              if (dialogContext.mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
-            child: Text("Add Area"),
-          ),
-        ],
-      );
-    },
-  );
-}
-Future<void> _createNewArea(BuildContext context) async {
-  if (!mounted) return; 
+  //   setState(() {
+  //     _coordinates = coordinates;
+  //     _isLoading = false;
+  //   });
+  // }
+//   Future<void> _showAddAreaDialog(BuildContext context) async {
+//   return showDialog(
+//     context: context,
+//     builder: (dialogContext) {
+//       return AlertDialog(
+//         title: Text("Add New Area"),
+//         content: SingleChildScrollView(
+//           child: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             children: [
+//               TextField(
+//                 controller: _newAreaNameController,
+//                 decoration: InputDecoration(
+//                   labelText: "Area Name",
+//                   border: OutlineInputBorder(),
+//                 ),
+//               ),
+//               SizedBox(height: 16),
+//               TextField(
+//                 controller: _newAreaDescriptionController,
+//                 decoration: InputDecoration(
+//                   labelText: "Description",
+//                   border: OutlineInputBorder(),
+//                 ),
+//                 maxLines: 3,
+//               ),
+//               SizedBox(height: 16),
+//               DropdownButtonFormField<String>(
+//                 value: _crimeRateValue,
+//                 decoration: InputDecoration(
+//                   labelText: "Crime Rate",
+//                   border: OutlineInputBorder(),
+//                 ),
+//                 items: [
+//                   DropdownMenuItem(
+//                     value: 'low',
+//                     child: Text("Low"),
+//                   ),
+//                   DropdownMenuItem(
+//                     value: 'medium',
+//                     child: Text("Medium"),
+//                   ),
+//                   DropdownMenuItem(
+//                     value: 'high',
+//                     child: Text("High"),
+//                   ),
+//                 ],
+//                 onChanged: (value) {
+//                   setState(() {
+//                     _crimeRateValue = value;
+//                   });
+//                 },
+//               ),
+//             ],
+//           ),
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(dialogContext),
+//             child: Text("Cancel"),
+//           ),
+//           ElevatedButton(
+//             onPressed: () async {
+//               if (_newAreaNameController.text.isEmpty) {
+//                 scaffoldMessengerKey.currentState?.showSnackBar(
+//                   SnackBar(content: Text('Please enter area name')),
+//                 );
+//                 return;
+//               }
 
-  String? token = await TokenHelper.getToken();
-  await _searchLocation();
-  print(_coordinates);
+//               // await _createNewArea(dialogContext);
+//               if (dialogContext.mounted) {
+//                 Navigator.pop(dialogContext);
+//               }
+//             },
+//             child: Text("Add Area"),
+//           ),
+//         ],
+//       );
+//     },
+//   );
+// }
+// // Future<void> _createNewArea(BuildContext context) async {
+//   if (!mounted) return;
 
-  if (!mounted) return;
-  
-  if (_coordinates == null) {
-    scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('Could not find coordinates for this location')),
-    );
-    return;
-  }
+//   String? token = await TokenHelper.getToken();
+//   // await _searchLocation();
+//   // print(_coordinates);
 
-  try {
-    final response = await http.post(
-      Uri.parse('https://patrollingappbackend.onrender.com/api/v1/crime-areas'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token'
-      },
-      body: json.encode({
-        'name': _newAreaNameController.text,        
-        'description': _newAreaDescriptionController.text,
-        'areaType': "Point",
-        'long': _coordinates!.longitude.toString(),
-        'lat': _coordinates!.latitude.toString(),
-        'crimeRate': _crimeRateValue,
-      }),
-    );
-    
-    print(response.body);
-    
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final responseData = json.decode(response.body);
-      if (mounted) {
-        setState(() {
-          selectedArea = responseData['data']['_id'];
-          areas.add(responseData['data']);
-        });
-        scaffoldMessengerKey.currentState?.showSnackBar(
-          SnackBar(content: Text('Area added successfully!')),
-        );
-      }
-    } else {
-      if (mounted) {
-        scaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text('Failed to add area: ${response.body}')),
-      );
-      }
-    }
-  } catch (e) {
-    if (mounted) {
-      scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('Error adding area: $e')),
-    );
-    }
-  } finally {
-    if (mounted) {
-      _newAreaNameController.clear();
-      _newAreaDescriptionController.clear();
-      _newAreaCrimeRateController.clear();
-    }
-  }
-}
+//   if (!mounted) return;
 
-  Future<void> getAllAreas(BuildContext context) async {
-    String? token = await TokenHelper.getToken();
-    try {
-      final response = await http.get(
-        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/crime-areas'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${token}'
-        },
-      );
-      print(response);
+//   if (_coordinates == null) {
+//     scaffoldMessengerKey.currentState?.showSnackBar(
+//       SnackBar(content: Text('Could not find coordinates for this location')),
+//     );
+//     return;
+//   }
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
+//   try {
+//     final response = await http.post(
+//       Uri.parse('https://patrollingappbackend.onrender.com/api/v1/crime-areas'),
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': 'Bearer $token'
+//       },
+//       body: json.encode({
+//         'name': _newAreaNameController.text,
+//         'description': _newAreaDescriptionController.text,
+//         'areaType': "Point",
+//         'long': _coordinates!.longitude.toString(),
+//         'lat': _coordinates!.latitude.toString(),
+//         'crimeRate': _crimeRateValue,
+//       }),
+//     );
 
-        setState(() {
-          areas = responseData['data'];
-          });
+//     print(response.body);
 
-      }
-    } catch (e) {
-      // Handle any errors that occur during the request
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred. Please try again. $e')),
-      );
-    }
-  }
+//     if (response.statusCode == 200 || response.statusCode == 201) {
+//       final responseData = json.decode(response.body);
+//       if (mounted) {
+//         setState(() {
+//           selectedArea = responseData['data']['_id'];
+//           areas.add(responseData['data']);
+//         });
+//         scaffoldMessengerKey.currentState?.showSnackBar(
+//           SnackBar(content: Text('Area added successfully!')),
+//         );
+//       }
+//     } else {
+//       if (mounted) {
+//         scaffoldMessengerKey.currentState?.showSnackBar(
+//         SnackBar(content: Text('Failed to add area: ${response.body}')),
+//       );
+//       }
+//     }
+//   } catch (e) {
+//     if (mounted) {
+//       scaffoldMessengerKey.currentState?.showSnackBar(
+//       SnackBar(content: Text('Error adding area: $e')),
+//     );
+//     }
+//   } finally {
+//     if (mounted) {
+//       _newAreaNameController.clear();
+//       _newAreaDescriptionController.clear();
+//       _newAreaCrimeRateController.clear();
+//     }
+//   }
+// }
+
+  // Future<void> getAllAreas(BuildContext context) async {
+  //   String? token = await TokenHelper.getToken();
+  //   try {
+  //     final response = await http.get(
+  //       Uri.parse('https://patrollingappbackend.onrender.com/api/v1/crime-areas'),
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': 'Bearer ${token}'
+  //       },
+  //     );
+  //     print(response);
+
+  //     if (response.statusCode == 200) {
+  //       final Map<String, dynamic> responseData = json.decode(response.body);
+
+  //       setState(() {
+  //         areas = responseData['data'];
+  //         });
+
+  //     }
+  //   } catch (e) {
+  //     // Handle any errors that occur during the request
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text('An error occurred. Please try again. $e')),
+  //     );
+  //   }
+  // }
 
   Future<void> assignWork(BuildContext context) async {
     _updateOfficerIds();
+    print(selectedLocations);
 
     if (officers.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select at least one officer')),
-    );
-    return;
-  }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one officer')),
+      );
+      return;
+    }
 
-  if (selectedArea.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select an area')),
-    );
-    return;
-  }
-
-  if (_startTimeController.text.isEmpty || _endTimeController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please enter start and end times')),
-    );
-    return;
-  }
+    if (_startTimeController.text.isEmpty || _endTimeController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter start and end times')),
+      );
+      return;
+    }
     String? token = await TokenHelper.getToken();
     try {
       final response = await http.post(
@@ -289,9 +284,12 @@ Future<void> _createNewArea(BuildContext context) async {
           },
           body: json.encode({
             'officerIds': officerIds,
-            'startsAt': _startTimeController.text,
-            'endsAt': _endTimeController.text,
-            'location': selectedArea,
+            'startsAt':
+                DateTime.parse(_startTimeController.text).toUtc().toString(),
+            'endsAt':
+                DateTime.parse(_endTimeController.text).toUtc().toString(),
+            'location': selectedLocations,
+            'duration': '0',
           }));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -306,6 +304,8 @@ Future<void> _createNewArea(BuildContext context) async {
           selectedArea = "";
           _startTimeController.clear();
           _endTimeController.clear();
+          selectedLocations = [];
+          _durationController.clear();
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -342,111 +342,135 @@ Future<void> _createNewArea(BuildContext context) async {
       officers = result;
     });
   }
-  Future<void> _selectDateTime(BuildContext context, TextEditingController controller) async {
-  final DateTime? pickedDate = await showDatePicker(
-    context: context,
-    initialDate: DateTime.now(),
-    firstDate: DateTime.now(),
-    lastDate: DateTime(2100),
-  );
-  if (pickedDate != null) {
-    final TimeOfDay? pickedTime = await showTimePicker(
+
+  Future<void> _selectDateTime(
+      BuildContext context, TextEditingController controller) async {
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
     );
-    if (pickedTime != null) {
-      final DateTime fullDateTime = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
       );
-      controller.text = fullDateTime.toIso8601String(); // Or format as needed
+      if (pickedTime != null) {
+        final DateTime fullDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        controller.text = fullDateTime.toIso8601String(); // Or format as needed
+      }
     }
   }
-}
+
+  String calculateTimeDifference(String startTime, String endTime) {
+    final format = DateFormat("HH:mm:ss");
+
+    final start = format.parse(startTime);
+    final end = format.parse(endTime);
+
+    Duration diff;
+
+    if (end.isAfter(start)) {
+      diff = end.difference(start);
+    } else {
+      // If end time is "next day" (e.g., 23:00:00 to 01:00:00)
+      diff = end.add(Duration(days: 1)).difference(start);
+    }
+
+    // Format back to HH:mm:ss
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String hh = twoDigits(diff.inHours);
+    String mm = twoDigits(diff.inMinutes.remainder(60));
+    String ss = twoDigits(diff.inSeconds.remainder(60));
+
+    return "$hh:$mm:$ss";
+  }
 
   @override
   void dispose() {
     _startTimeController.dispose();
     _endTimeController.dispose();
-    _newAreaNameController.dispose();
-    _newAreaDescriptionController.dispose();
+    // _newAreaNameController.dispose();
+    // _newAreaDescriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldMessenger(
-      key: scaffoldMessengerKey,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text("Work Assignment"),
-          centerTitle: true,
-          elevation: 0,
-          foregroundColor: Colors.white,
-          backgroundColor: const Color.fromARGB(255, 1, 32, 96),
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Assignment Details",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade800,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      _buildOfficerSelection(),
-                      SizedBox(height: 16),
-                      _buildDateTimeFields(),
-                      SizedBox(height: 16),
-                      _buildAreaDropdown(context),
-                    ],
-                  ),
-                ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Work Assignment"),
+        centerTitle: true,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        backgroundColor: const Color.fromARGB(255, 1, 32, 96),
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              SizedBox(height: 24),
-              Center(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => assignWork(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade800,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      "CREATE ASSIGNMENT",
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Assignment Details",
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
                       ),
+                    ),
+                    SizedBox(height: 16),
+                    _buildOfficerSelection(),
+                    SizedBox(height: 16),
+                    _buildDateTimeFields(),
+                    SizedBox(height: 16),
+                    _buildAreaTextField(context),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 24),
+            Center(
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => assignWork(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade800,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    "CREATE ASSIGNMENT",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -474,7 +498,9 @@ Future<void> _createNewArea(BuildContext context) async {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  officers.isEmpty ? "No officers selected" : "${officers.length} officers selected",
+                  officers.isEmpty
+                      ? "No officers selected"
+                      : "${officers.length} officers selected",
                   style: TextStyle(
                     color: officers.isEmpty ? Colors.grey : Colors.black,
                   ),
@@ -486,8 +512,11 @@ Future<void> _createNewArea(BuildContext context) async {
               onPressed: () {
                 _navigateAndDisplaySelection(context);
               },
-              icon: Icon(Icons.add, color : Colors.white ,size: 20),
-              label: Text("Add", style: TextStyle(color: Colors.white),),
+              icon: Icon(Icons.add, color: Colors.white, size: 20),
+              label: Text(
+                "Add",
+                style: TextStyle(color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade800,
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -575,69 +604,52 @@ Future<void> _createNewArea(BuildContext context) async {
     );
   }
 
-  Widget _buildAreaDropdown(BuildContext context) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        "Area",
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
-      ),
-      SizedBox(height: 8),
-      DropdownButtonFormField(
-        decoration: InputDecoration(
-          labelText: "Select area",
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildAreaTextField(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Area",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
-          prefixIcon: Icon(Icons.location_on),
         ),
-        value: selectedArea.isNotEmpty ? selectedArea : null,
-        items: [
-          ...areas.map((area) {
-            return DropdownMenuItem(
-              value: area['_id'], // Use the area ID as value
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(area['name']),
-                  // Text(
-                  //   'Crime rate: ${area['crimeRate']}',
-                  //   style: TextStyle(
-                  //     fontSize: 12,
-                  //     color: Colors.grey,
-                  //   ),
-                  // ),
-                ],
-              ),
-            );
-          }).toList(),
-          DropdownMenuItem(
-            value: "add_new",
-            child: Row(
-              children: [
-                Icon(Icons.add, size: 18),
-                SizedBox(width: 8),
-                Text("Add New Area"),
-              ],
-            ),
+        SizedBox(height: 12),
+        ElevatedButton.icon(
+          icon: Icon(Icons.location_pin),
+          label: Text("Select Area"),
+          onPressed: () async {
+            final selected = await Navigator.push(context,
+                MaterialPageRoute(builder: (context) => MapPointSelector()));
+            if (selected != null) {
+              setState(() {
+                selectedLocations = selected!;
+                // _longitudeController.text = selected.longitude.toString();
+                // _latitudeController.text = selected.latitude.toString();
+              });
+            }
+          },
+        ),
+        if (selectedLocations.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: selectedLocations.map((loc) {
+              return Chip(
+                label: Text(
+                  "${loc.latitude} , ${loc.longitude}",
+                  style: TextStyle(color: Colors.white),
+                ),
+                deleteIcon: Icon(Icons.close, size: 18, color: Colors.white),
+                onDeleted: () => _removeLocation(
+                    loc.latitude.toString(), loc.longitude.toString()),
+                backgroundColor: Colors.blue.shade600,
+              );
+            }).toList(),
           ),
         ],
-        onChanged: (value) {
-          if (value == "add_new") {
-            _showAddAreaDialog(context);
-          } else {
-            setState(() {
-              selectedArea = value as String;
-            });
-          }
-        },
-        validator: (value) => value == null ? 'Please select an area' : null,
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 }
