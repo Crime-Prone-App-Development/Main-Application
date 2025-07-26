@@ -36,6 +36,9 @@ class TokenHelper {
   static Future<String?> getToken() async {
     return await _storage.read(key: authTokenKey);
   }
+  static Future<String?> getRole() async {
+    return await _storage.read(key: userRoleKey);
+  }
 
   static Future<List<String?>> getUserData() async {
     String ? token= await _storage.read(key: authTokenKey);

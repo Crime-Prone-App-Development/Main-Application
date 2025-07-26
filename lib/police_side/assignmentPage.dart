@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -508,7 +509,7 @@ class _AssignmentPageState extends State<AssignmentPage> {
     try {
       final response = await http.get(
         Uri.parse(
-            'https://patrollingappbackend.onrender.com/api/v1/assignments'),
+            '${dotenv.env["BACKEND_URI"]}/assignments'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token}'

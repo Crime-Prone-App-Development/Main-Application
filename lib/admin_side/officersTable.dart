@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../token_helper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OfficersTablePage extends StatefulWidget {
   final List<dynamic>? initialSelectedOfficers;
@@ -105,7 +106,7 @@ class _OfficersTablePageState extends State<OfficersTablePage> {
     String? token = await TokenHelper.getToken();
     try {
       final response = await http.get(
-        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/users'),
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/users'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token}'

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:mainapp/otp_verify.dart';
 import 'dart:convert';
 
 import 'package:mainapp/resetpass.dart';
@@ -14,6 +16,45 @@ class _forgotPasswordState extends State<forgotPassword> {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController badgeIdController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  Future<Map<String, String>?> sendOTP() async {
+    final String badgeNumber = badgeIdController.text;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/auth/send-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"badgeNumber": badgeNumber}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        final String badge = responseData["data"]["badgeNumber"] ?? badgeNumber;
+        final String phone = responseData["data"]["phoneNumber"] ?? "";
+
+        return {
+          "badgeNumber": badge,
+          "phoneNumber": phone,
+        };
+      } else {
+        print("OTP sending failed: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Error sending OTP: $e");
+      return null;
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +81,7 @@ class _forgotPasswordState extends State<forgotPassword> {
               ),
               SizedBox(height: 50),
               Text(
-                "Forgot Password?",
+                "Forgot Password",
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 40),
@@ -66,15 +107,39 @@ class _forgotPasswordState extends State<forgotPassword> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (context) => resetPassword()));
-                },
-                child: Text("ENTER",
-                    style: TextStyle(
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        final result = await sendOTP();
+                        if (result != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OTPPage(
+                                badgeNumber: result['badgeNumber']!,
+                                phoneNumber: result['phoneNumber']!,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    "Badge ID does not exist. Please try again.")),
+                          );
+                        }
+                      },
+                child: _isLoading
+                    ? CircularProgressIndicator(
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700)),
+                      )
+                    : Text(
+                        "Send OTP",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700),
+                      ),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mainapp/token_helper.dart';
 import 'package:http/http.dart' as http;
@@ -107,7 +108,7 @@ class _ScanCheckpointPageState extends State<ScanCheckpointPage> {
       return;
     }
 
-    var uri = Uri.parse('https://patrollingappbackend.onrender.com/api/v1/selfies/${assignmentId}');
+    var uri = Uri.parse('${dotenv.env["BACKEND_URI"]}/selfies/${assignmentId}');
     var request = http.MultipartRequest('POST', uri);
 
     // Headers - Remove Content-Type header!

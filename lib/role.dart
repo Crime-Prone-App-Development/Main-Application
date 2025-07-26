@@ -18,7 +18,7 @@ class _roleChangeState extends State<roleChange> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               SizedBox(height: 40),
-              Image.asset('assets/logos/up_police_logo.png',
+              Image.asset('assets/logos/up_police_logo.jpeg',
                   height: 300), // Replace with correct path
               SizedBox(height: 40),
               Text(

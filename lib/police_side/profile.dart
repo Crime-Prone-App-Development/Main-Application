@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:mainapp/userProvider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mainapp/resetpass.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -18,15 +19,12 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-
   List<dynamic> userInfo = [];
   File? _pickedImage;
   late TextEditingController _dobController;
   late TextEditingController _hireDateController;
   bool _isEditing = false;
   late SharedPreferences _prefs;
-  
-  
 
   @override
   void initState() {
@@ -39,7 +37,11 @@ class _ProfilePageState extends State<ProfilePage> {
     _hireDateController = TextEditingController(text: '');
     _initPrefs();
   }
-  
+  void printRouteStack(BuildContext context) {
+  Navigator.of(context).widget.pages.forEach((page) {
+    print('Route: ${page.name ?? page.runtimeType}');
+  });
+}
 
   Future<void> _initPrefs() async {
     _prefs = await SharedPreferences.getInstance();
@@ -81,9 +83,10 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
-
-          _buildEditableInfoItem('Date of Birth', _dobController, isEditing: _isEditing),
-          _buildEditableInfoItem('Hire Date', _hireDateController, isEditing: _isEditing),
+          _buildEditableInfoItem('Date of Birth', _dobController,
+              isEditing: _isEditing),
+          _buildEditableInfoItem('Hire Date', _hireDateController,
+              isEditing: _isEditing),
           _buildInfoItem('Shift Schedule', 'Not Scheduled'),
           _buildInfoItem('Assigned Location', 'N/A'),
           SizedBox(height: 24),
@@ -118,92 +121,116 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader() {
-  return Card(
-    elevation: 4,
-    child: Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundImage: _pickedImage != null
-                      ? FileImage(_pickedImage!)
-                      : AssetImage('assets/default_avatar.png') as ImageProvider,
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundImage: _pickedImage != null
+                        ? FileImage(_pickedImage!)
+                        : AssetImage('assets/default_avatar.png')
+                            as ImageProvider,
+                  ),
                 ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userInfo[2],
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userInfo[2],
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text('Badge ID: ${userInfo[5]}'),
-                    Text('Contact: ${userInfo[3]}'),
-                  ],
+                      SizedBox(height: 4),
+                      Text('Badge ID: ${userInfo[5]}'),
+                      Text('Contact: ${userInfo[3]}'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              icon: Icon(Icons.logout, size: 18),
-              label: Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[400],
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              onPressed: _handleLogout,
+              ],
             ),
+            SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                  icon: Icon(Icons.security, size: 18),
+                  label: Text('Change Password', style: TextStyle(color: Colors.white),),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[400],
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    iconColor: Colors.white
+                  ),
+                  onPressed: () async => {
+                    printRouteStack(context),
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => ResetPassword(
+                                      requireOldPassword: true,
+                                    )))
+                      }),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.logout, size: 18),
+                label: Text('Logout', style: TextStyle(color: Colors.white),),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[400],
+                  iconColor: Colors.white
+                ),
+                onPressed: _handleLogout,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Logout'),
+        content: Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          TextButton(
+            child: Text('Logout', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.of(context).pop(true),
           ),
         ],
       ),
-    ),
-  );
-}
-Future<void> _handleLogout() async {
-  final shouldLogout = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Logout'),
-      content: Text('Are you sure you want to logout?'),
-      actions: [
-        TextButton(
-          child: Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        TextButton(
-          child: Text('Logout', style: TextStyle(color: Colors.red)),
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-    ),
-  );
-
-  if (shouldLogout == true) {
-    // Clear all stored data
-    await TokenHelper.clearData();
-    
-    // Navigate to login screen and clear all routes
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginPage()), // Replace with your login screen
-      (route) => false,
     );
+
+    if (shouldLogout == true) {
+      // Clear all stored data
+      await TokenHelper.clearData();
+
+      // Navigate to login screen and clear all routes
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+            builder: (context) =>
+                LoginPage()), // Replace with your login screen
+        (route) => false,
+      );
+    }
   }
-}
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -280,7 +307,8 @@ Future<void> _handleLogout() async {
     );
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+  Future<void> _selectDate(
+      BuildContext context, TextEditingController controller) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -293,6 +321,7 @@ Future<void> _handleLogout() async {
       });
     }
   }
+
   void _toggleEditing() {
     setState(() {
       _isEditing = !_isEditing;
@@ -303,7 +332,7 @@ Future<void> _handleLogout() async {
     });
   }
 
-   Future<void> _saveChanges() async {
+  Future<void> _saveChanges() async {
     try {
       // Save to SharedPreferences
       await _prefs.setString('user_dob', _dobController.text);
@@ -325,7 +354,8 @@ Future<void> _handleLogout() async {
     }
   }
 
-Widget _buildEditableInfoItem(String label, TextEditingController controller, {required bool isEditing}) {
+  Widget _buildEditableInfoItem(String label, TextEditingController controller,
+      {required bool isEditing}) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -352,7 +382,8 @@ Widget _buildEditableInfoItem(String label, TextEditingController controller, {r
                         onPressed: () => _selectDate(context, controller),
                       ),
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     ),
                     onTap: () => _selectDate(context, controller),
                     readOnly: true,

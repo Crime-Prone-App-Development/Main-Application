@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-// import 'package:path/path.dart';
 import 'package:provider/provider.dart';
+import 'package:hive/hive.dart';
 import 'package:mainapp/userProvider.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -10,46 +10,54 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  List<dynamic> userInfo = [];
   String _guardName = "";
   String _currentDate = DateFormat('MMM d, yyyy').format(DateTime.now());
   String _selectedFilter = "All";
-  final List<Map<String, String>> _notifications = [
-    {
-      'date': '10/15/23',
-      'time': '9:00 AM',
-      'type': 'Alert',
-      'message': 'Security breach reported at main gate'
-    },
-    {
-      'date': '10/14/23',
-      'time': '8:30 AM',
-      'type': 'Update',
-      'message': 'New patrol routes have been assigned'
-    },
-    {
-      'date': '10/13/23',
-      'time': '7:45 PM',
-      'type': 'Reminder',
-      'message': 'Shift starts at 8:00 AM tomorrow'
-    },
-    // Add more notifications as needed
-  ];
+
+  List<Map> _notificationHistory = [];
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
+    try {
+      final userInfo = context.read<UserProvider>().user;
+      _guardName = userInfo?[2] ?? "";
+    } catch (e) {
+      _guardName = "Unknown";
+    }
+    _loadNotifications();
+  }
+
+  void _loadNotifications() {
+    final box = Hive.box('notifications');
     setState(() {
-      userInfo = context.read<UserProvider>().user!;
-      _guardName = userInfo[2];
+      _notificationHistory =
+          box.values.cast<Map>().toList().reversed.toList(); // newest first
     });
   }
-    
+
+  void _clearNotifications() async {
+    final box = Hive.box('notifications');
+    await box.clear();
+    _loadNotifications();
+  }
+
+  List<Map> _filteredNotifications() {
+    if (_selectedFilter == "All") return _notificationHistory;
+    return _notificationHistory.where((notif) {
+      final type = (notif['type'] ?? "").toString().toLowerCase();
+      return type == _selectedFilter.toLowerCase();
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final notificationsToShow = _filteredNotifications();
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Notifications'),
+        backgroundColor: Colors.blue.shade800,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
@@ -60,7 +68,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             SizedBox(height: 20),
             _buildFilterChips(),
             SizedBox(height: 20),
-            _buildNotificationsTable(),
+            _buildNotificationsTable(notificationsToShow),
             SizedBox(height: 20),
             _buildClearButton(),
           ],
@@ -86,7 +94,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildFilterChips() {
-    final filters = ['All', 'Unread', 'Read', 'Alert'];
+    final filters = ['All', 'Alert', 'Reminder', 'Update'];
 
     return Wrap(
       spacing: 8,
@@ -104,7 +112,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationsTable() {
+  Widget _buildNotificationsTable(List<Map> notifications) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey),
@@ -116,18 +124,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Divider(height: 1),
           Container(
             height: 300,
-            child: ListView.builder(
-              itemCount: _notifications.length,
-              itemBuilder: (context, index) {
-                final notification = _notifications[index];
-                return _buildTableRow(
-                  notification['date']!,
-                  notification['time']!,
-                  notification['type']!,
-                  notification['message']!,
-                );
-              },
-            ),
+            child: notifications.isEmpty
+                ? Center(child: Text("No notifications"))
+                : ListView.builder(
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) {
+                      final notif = notifications[index];
+                      final dateTime = DateTime.tryParse(notif['timestamp'] ?? "") ?? DateTime.now();
+                      final dateStr = DateFormat('MM/dd/yy').format(dateTime);
+                      final timeStr = DateFormat('h:mm a').format(dateTime);
+                      final type = notif['type'] ?? "General";
+                      final msg = notif['body'] ?? "No message";
+                      return _buildTableRow(dateStr, timeStr, type, msg);
+                    },
+                  ),
           ),
         ],
       ),
@@ -189,7 +199,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Text(
           text,
           style: TextStyle(
-            color: isType && text == 'Alert' ? Colors.red : Colors.black,
+            color: isType && text.toLowerCase() == 'alert'
+                ? Colors.red
+                : Colors.black,
           ),
         ),
       ),
@@ -200,13 +212,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Center(
       child: ElevatedButton(
         onPressed: () {
-          // Add clear functionality
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
               title: Text('Clear Notifications'),
-              content:
-                  Text('Are you sure you want to clear all notifications?'),
+              content: Text('Are you sure you want to clear all notifications?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -214,9 +224,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    setState(() {
-                      _notifications.clear();
-                    });
+                    _clearNotifications();
                     Navigator.pop(context);
                   },
                   child: Text('Clear'),
@@ -226,6 +234,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
         },
         child: Text('Clear All Notifications'),
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
       ),
     );
   }

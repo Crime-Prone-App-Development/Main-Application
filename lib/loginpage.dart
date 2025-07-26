@@ -1,12 +1,17 @@
 // import 'dart:ffi' hide Size;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:mainapp/forgotpass.dart';
 import 'dart:convert';
 import './token_helper.dart';
 import 'userProvider.dart';
 import 'package:provider/provider.dart';
+import './services/firebase_notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -21,6 +26,8 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController passwordController = TextEditingController();
 
   bool homePageLoading = false;
+
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   Future<void> _login(BuildContext context) async {
     final String phone = phoneController.text;
@@ -41,8 +48,7 @@ class _LoginPageState extends State<LoginPage> {
 
       try {
         final response = await http.post(
-          Uri.parse(
-              'https://patrollingappbackend.onrender.com/api/v1/auth/login'),
+          Uri.parse('${dotenv.env["BACKEND_URI"]}/auth/login'),
           body: json.encode(requestBody),
           headers: {'Content-Type': 'application/json'},
         );
@@ -72,13 +78,13 @@ class _LoginPageState extends State<LoginPage> {
               homePageLoading = true;
             });
             await TokenHelper.saveToken(
-                token: token,
-                userId: userId,
-                userName: username,
-                userPhone: userPhone,
-                userRole: userRole,
-                badgeId: badgeId,
-                );
+              token: token,
+              userId: userId,
+              userName: username,
+              userPhone: userPhone,
+              userRole: userRole,
+              badgeId: badgeId,
+            );
 
             setState(() {
               homePageLoading = false;
@@ -93,7 +99,31 @@ class _LoginPageState extends State<LoginPage> {
           homePageLoading
               ? CircularProgressIndicator()
               : Navigator.pushNamedAndRemoveUntil(
-                  context, userRole == 'ADMIN' ? '/adminHome' : '/home', (route) => false);
+                  context,
+                  userRole == 'ADMIN' ? '/adminHome' : '/home',
+                  (route) => false);
+          String? fcmtoken =
+              await _messaging.getToken();
+          String? tokenBackend = await TokenHelper.getToken();
+          try {
+            final response = await http.post(
+                Uri.parse('${dotenv.env["BACKEND_URI"]}/auth/fcmtoken'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ${tokenBackend}'
+                },
+                body: json.encode({'token': fcmtoken}));
+
+            if (response.statusCode == 200 || response.statusCode == 201) {
+              // final Map<String, dynamic> responseData = json.decode(response.body);
+              print("Fcm token Set");
+            } else {
+              print("else block");
+            }
+          } catch (e) {
+            // Handle any errors that occur during the request
+            print("error at setting fcm token : ${e}");
+          }
         } else {
           // If the server did not return a 200 OK response,
           // show an error message.

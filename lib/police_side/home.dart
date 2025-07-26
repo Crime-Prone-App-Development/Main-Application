@@ -3,6 +3,7 @@ import 'dart:io';
 // import 'dart:nativewrappers/_internal/vm/lib/math_patch.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mainapp/police_side/appbar.dart';
@@ -95,10 +96,10 @@ class _homePageState extends State<homePage> {
                         showBackgroundLocationIndicator: false,
                       ))
             .listen((event) async {
-          setState(() {
-            currentLocation = event;
-            // print(currentLocation);
-          });
+          // setState(() {
+          //   currentLocation = event;
+          //   // print(currentLocation);
+          // });
         });
       },
     );
@@ -108,7 +109,7 @@ class _homePageState extends State<homePage> {
     String? token = await TokenHelper.getToken();
     // Establish socket connection
     socket = IO.io(
-        'https://patrollingappbackend.onrender.com',
+        '${dotenv.env["BACKEND_URI_SOCKET"]}',
         IO.OptionBuilder()
             .setTransports(['websocket']) // for Flutter or Dart VM
             // .disableAutoConnect()  // disable auto-connection

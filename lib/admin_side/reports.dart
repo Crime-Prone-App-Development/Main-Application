@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'home.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ReportsPage extends StatefulWidget {
   final List<dynamic>? reports;
@@ -63,7 +64,7 @@ class _ReportsPageState extends State<ReportsPage> {
       }
 
       final response = await http.get(
-        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/report'),
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/report'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token}'
@@ -112,7 +113,7 @@ class _ReportsPageState extends State<ReportsPage> {
 
   String _formatReportDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
+      final date = DateTime.parse(dateString).toLocal();
       return DateFormat('MMM d, h:mm a').format(date);
     } catch (e) {
       return '';
@@ -473,20 +474,24 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  void _navigateToReportDetails(BuildContext context, dynamic report) {
-    Navigator.push(
+  void _navigateToReportDetails(BuildContext context, dynamic report) async{
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => IncidentReportDetails(
           id: report["_id"].toString(),
           description: report["description"],
-          latitude: report["location"]["coordinates"][0]["latitude"],
-          longitude: report["location"]["coordinates"][0]["longitude"],
+          type : report["type"],
+          // latitude: report["location"]["coordinates"][0]["latitude"],
+          // longitude: report["location"]["coordinates"][0]["longitude"],
+          latitude: report["location"][0].toString(),
+          longitude: report["location"][1].toString(),
           imageUrls: report["images"],
           reportDate: _formatReportDate(report["createdAt"]),
           reviewStatus: report["isReviewed"],
         ),
       ),
     );
+    await _fetchReports();
   }
 }

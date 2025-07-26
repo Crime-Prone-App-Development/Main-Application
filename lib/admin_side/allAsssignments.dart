@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mainapp/admin_side/home.dart';
 import 'package:mainapp/admin_side/route_map_page.dart';
 import '../token_helper.dart';
@@ -121,7 +122,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
       String? token = await TokenHelper.getToken();
       final response = await http.get(
         Uri.parse(
-            'https://patrollingappbackend.onrender.com/api/v1/assignments'),
+            '${dotenv.env["BACKEND_URI"]}/assignments'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token'
@@ -846,7 +847,7 @@ void _viewImageLocationOnMap(double lat, double lng, String title) {
       String? token = await TokenHelper.getToken();
       final response = await http.patch(
         Uri.parse(
-            'https://patrollingappbackend.onrender.com/api/v1/selfies/$imageId/verify'),
+            '${dotenv.env["BACKEND_URI"]}/selfies/$imageId/verify'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token'

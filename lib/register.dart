@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -46,7 +47,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       // Send a POST request to the backend
       final response = await http.post(
-        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/auth/register'),
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
       );

@@ -10,6 +10,7 @@ import 'package:mainapp/admin_side/reports.dart';
 import 'package:mainapp/admin_side/route_map_page.dart';
 import 'package:mainapp/police_side/checkpoint.dart';
 import 'package:mainapp/police_side/home.dart';
+import 'package:mainapp/resetpass.dart';
 // import 'package:path/path.dart';
 import '../token_helper.dart';
 import 'package:http/http.dart' as http;
@@ -42,6 +43,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:typed_data';
 
 import 'package:mainapp/loginpage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class adminHome extends StatefulWidget {
   @override
@@ -49,8 +51,8 @@ class adminHome extends StatefulWidget {
 }
 
 class _adminHomeState extends State<adminHome> {
-
-  Map<String, dynamic> _connectedUsers = {}; // Track connected users with their data
+  Map<String, dynamic> _connectedUsers =
+      {}; // Track connected users with their data
   Map<String, Marker> _connectedUsersMarkers = {};
 
   Map<String, Marker> _allUsersMarkers = {}; // Track all users with their IDs
@@ -101,184 +103,179 @@ class _adminHomeState extends State<adminHome> {
   ];
 
   Future<void> _connectToSocket() async {
-  String? token = await TokenHelper.getToken();
-  IO.Socket socket = IO.io(
-    'https://patrollingappbackend.onrender.com',
-    IO.OptionBuilder()
-        .setTransports(['websocket'])
-        .setExtraHeaders({'authorization': "$token"})
-        .build(),
-  );
+    String? token = await TokenHelper.getToken();
+    IO.Socket socket = IO.io(
+      "${dotenv.env["BACKEND_URI_SOCKET"]}",
+      IO.OptionBuilder().setTransports(['websocket']).setExtraHeaders(
+          {'authorization': "$token"}).build(),
+    );
 
-  socket.onConnect((_) {
-    print('Connected to Socket Server');
-    socket.emit('registerAdmin');
-    _fetchAllUsers(); // Load all users when connected
-  });
+    socket.onConnect((_) {
+      print('Connected to Socket Server');
+      socket.emit('registerAdmin');
+      _fetchAllUsers(); // Load all users when connected
+    });
 
-  socket.on('userConnected', (userId) {
-    if (mounted) {
-      setState(() {
-        // Find the user in _allUsers and add to connected users
-        final user = _allUsers.firstWhere(
-          (u) => u['_id'] == userId,
-          orElse: () => null,
-        );
-        if (user != null) {
-          _connectedUsers[userId] = user;
-          _updateConnectedMarkers();
-        }
-      });
-    }
-  });
+    socket.on('userConnected', (userId) {
+      if (mounted) {
+        setState(() {
+          // Find the user in _allUsers and add to connected users
+          final user = _allUsers.firstWhere(
+            (u) => u['_id'] == userId,
+            orElse: () => null,
+          );
+          if (user != null) {
+            _connectedUsers[userId] = user;
+            _updateConnectedMarkers();
+          }
+        });
+      }
+    });
 
-  socket.on('userLocation', (data) {
-    if (mounted) {
-      setState(() {
-        // Only update if user is connected
-        if (_connectedUsers.containsKey(data['userId'])) {
-          _connectedUsers[data['userId']] = {
-            ..._connectedUsers[data['userId']],
-            'latitude': data['latitude'],
-            'longitude': data['longitude'],
-            'lastUpdate': DateTime.now().toIso8601String(),
-          };
-          _updateConnectedMarkers();
-        }
-      });
-    }
-  });
+    socket.on('userLocation', (data) {
+      if (mounted) {
+        setState(() {
+          // Only update if user is connected
+          if (_connectedUsers.containsKey(data['userId'])) {
+            _connectedUsers[data['userId']] = {
+              ..._connectedUsers[data['userId']],
+              'latitude': data['latitude'],
+              'longitude': data['longitude'],
+              'lastUpdate': DateTime.now().toIso8601String(),
+            };
+            _updateConnectedMarkers();
+          }
+        });
+      }
+    });
 
+    socket.on('alert', (data) async {
+      String alertTitle =
+          data['type'] == 'panic' ? 'PANIC ALERT!' : 'INCIDENT ALERT';
 
-
-  socket.on('alert', (data) async {
-  String alertTitle = data['type'] == 'panic' 
-      ? 'PANIC ALERT!' 
-      : 'INCIDENT ALERT';
-  
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text(alertTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('From: ${data['userName']}'),
-            SizedBox(height: 8),
-            Text('Location: ${data['location']}'),
-            SizedBox(height: 8),
-            if (data['description'] != null) 
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Description:'),
-                  Text(data['description']),
-                ],
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(alertTitle),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('From: ${data['userName']}'),
+                SizedBox(height: 8),
+                Text('Location: ${data['location']}'),
+                SizedBox(height: 8),
+                if (data['description'] != null)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Description:'),
+                      Text(data['description']),
+                    ],
+                  ),
+                SizedBox(height: 8),
+                Text('Time: ${(data['timestamp'])}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: Text('ACKNOWLEDGE'),
+                onPressed: () {
+                  socket.emit('acknowledge-alert', {
+                    'alertId': data['alertId'],
+                    'adminId': "currentAdminId",
+                  });
+                  Navigator.of(context).pop();
+                },
               ),
-            SizedBox(height: 8),
-            Text('Time: ${(data['timestamp'])}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: Text('ACKNOWLEDGE'),
-            onPressed: () {
-              socket.emit('acknowledge-alert', {
-                'alertId': data['alertId'],
-                'adminId': "currentAdminId",
-              });
-              Navigator.of(context).pop();
-            },
+            ],
+          );
+        },
+      );
+
+      // Show notification
+      await NotificationService.showNotification(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000, // Unique ID
+        title: alertTitle,
+        body: data['type'] == 'panic'
+            ? 'Immediate assistance needed from ${data['userName']}'
+            : 'Incident reported by ${data['userName']}',
+        // payload: json.encode(data), // Optional payload
+      );
+    });
+
+    // Handle disconnections
+    socket.on('userDisconnected', (userId) {
+      if (mounted) {
+        setState(() {
+          _connectedUsers.remove(userId);
+          _connectedUsersMarkers.remove(userId);
+        });
+      }
+    });
+
+    socket.onDisconnect((_) => print('Disconnected from server'));
+  }
+
+  void _updateConnectedMarkers() {
+    final newMarkers = <String, Marker>{};
+
+    for (var user in _connectedUsers.values) {
+      if (user['latitude'] != null && user['longitude'] != null) {
+        newMarkers[user['_id']] = Marker(
+          markerId: MarkerId(user['_id']),
+          position: LatLng(user['latitude'], user['longitude']),
+          infoWindow: InfoWindow(
+            title: user['name'] ?? 'Officer',
+            snippet:
+                'Updated: ${DateTime.parse(user['lastUpdate']) ?? 'Unknown'}',
           ),
-        ],
-      );
-    },
-  );
-  
-  // Show notification
-  await NotificationService.showNotification(
-  id: DateTime.now().millisecondsSinceEpoch ~/ 1000, // Unique ID
-  title: alertTitle,
-  body: data['type'] == 'panic' 
-      ? 'Immediate assistance needed from ${data['userName']}' 
-      : 'Incident reported by ${data['userName']}',
-  // payload: json.encode(data), // Optional payload
-);
-});
-
-
-
-  // Handle disconnections
-  socket.on('userDisconnected', (userId) {
-    if (mounted) {
-      setState(() {
-        _connectedUsers.remove(userId);
-        _connectedUsersMarkers.remove(userId);
-      });
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            user['role'] == 'admin'
+                ? BitmapDescriptor.hueRed
+                : BitmapDescriptor.hueBlue,
+          ),
+        );
+      }
     }
-  });
 
-  socket.onDisconnect((_) => print('Disconnected from server'));
-}
+    setState(() => _connectedUsersMarkers = newMarkers);
+  }
 
-void _updateConnectedMarkers() {
-  final newMarkers = <String, Marker>{};
-  
-  for (var user in _connectedUsers.values) {
-    if (user['latitude'] != null && user['longitude'] != null) {
-      newMarkers[user['_id']] = Marker(
-        markerId: MarkerId(user['_id']),
-        position: LatLng(user['latitude'], user['longitude']),
-        infoWindow: InfoWindow(
-          title: user['name'] ?? 'Officer',
-          snippet: 'Updated: ${DateTime.parse(user['lastUpdate']) ?? 'Unknown'}',
-        ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          user['role'] == 'admin' 
-            ? BitmapDescriptor.hueRed 
-            : BitmapDescriptor.hueBlue,
-        ),
+  Future<void> _fetchAllUsers() async {
+    setState(() => _loadingUsers = true);
+    String? token = await TokenHelper.getToken();
+
+    try {
+      final response = await http.get(
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/users'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
       );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _allUsers = data['data'] ?? [];
+          // _updateMarkersFromUsers();
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load users: ${e.toString()}')),
+      );
+    } finally {
+      setState(() => _loadingUsers = false);
     }
   }
-  
-  setState(() => _connectedUsersMarkers = newMarkers);
-}
-Future<void> _fetchAllUsers() async {
-  setState(() => _loadingUsers = true);
-  String? token = await TokenHelper.getToken();
-  
-  try {
-    final response = await http.get(
-      Uri.parse('https://patrollingappbackend.onrender.com/api/v1/users'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token'
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        _allUsers = data['data'] ?? [];
-        // _updateMarkersFromUsers();
-      });
-    }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to load users: ${e.toString()}')),
-    );
-  } finally {
-    setState(() => _loadingUsers = false);
-  }
-}
 
 // void _updateMarkersFromUsers() {
 //   final newMarkers = <String, Marker>{};
-  
+
 //   for (var user in _allUsers) {
 //     if (user['latitude'] != null && user['longitude'] != null) {
 //       newMarkers[user['_id']] = Marker(
@@ -289,14 +286,14 @@ Future<void> _fetchAllUsers() async {
 //           snippet: 'Last update: ${user['lastUpdate'] ?? 'Unknown'}',
 //         ),
 //         icon: BitmapDescriptor.defaultMarkerWithHue(
-//           user['role'] == 'admin' 
-//             ? BitmapDescriptor.hueRed 
+//           user['role'] == 'admin'
+//             ? BitmapDescriptor.hueRed
 //             : BitmapDescriptor.hueBlue,
 //         ),
 //       );
 //     }
 //   }
-  
+
 //   setState(() => _allUsersMarkers = newMarkers);
 // }
 
@@ -395,68 +392,72 @@ Future<void> _fetchAllUsers() async {
       width: _sidebarWidth,
       color: Color(0xFFECE7E7),
       child: Column(
-      children: [
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.only(top: 20, left: 8),
-            children: [
-              _buildMenuItem('Dashboard', Icons.dashboard, adminHome()),
-              _buildMenuItem('Assign Police Officers', Icons.people, AdminApp()),
-              _buildMenuItem(
-                  'Reports', Icons.assignment, ReportsPage(reports: allReports)),
-              _buildMenuItem("Assignments", Icons.assignment_ind_outlined, AssignmentsPage()),
-              // _buildMenuItem(
-              //     'test', Icons.assignment, RouteMapPage()),
-            ],
+        children: [
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.only(top: 20, left: 8),
+              children: [
+                _buildMenuItem('Dashboard', Icons.dashboard, adminHome()),
+                _buildMenuItem(
+                    'Assign Police Officers', Icons.people, AdminApp()),
+                _buildMenuItem('Reports', Icons.assignment,
+                    ReportsPage(reports: allReports)),
+                _buildMenuItem("Assignments", Icons.assignment_ind_outlined,
+                    AssignmentsPage()),
+                _buildMenuItem('Change Password', Icons.security, ResetPassword(requireOldPassword: true,)),
+                // _buildMenuItem(
+                //     'test', Icons.assignment, RouteMapPage()),
+              ],
+            ),
           ),
-        ),
-        _buildLogoutButton(), // This will now appear at the bottom
-      ],
-    ),
+          _buildLogoutButton(), // This will now appear at the bottom
+        ],
+      ),
     );
   }
 
   Widget _buildLogoutButton() {
-  return Container(
-    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    decoration: BoxDecoration(
-      border: Border(top: BorderSide(color: Colors.grey.shade300))),
-    child: ListTile(
-      leading: Icon(Icons.logout, color: Colors.red),
-      title: Text('Logout', style: TextStyle(color: Colors.red)),
-      contentPadding: EdgeInsets.zero,
-      onTap: _handleLogout,
-    ),
-  );
-}
-Future<void> _handleLogout() async {
-  final shouldLogout = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Logout'),
-      content: Text('Are you sure you want to logout?'),
-      actions: [
-        TextButton(
-          child: Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        TextButton(
-          child: Text('Logout', style: TextStyle(color: Colors.red)),
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-    ),
-  );
-
-  if (shouldLogout == true) {
-    await TokenHelper.clearData();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
-      (route) => false,
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.shade300))),
+      child: ListTile(
+        leading: Icon(Icons.logout, color: Colors.red),
+        title: Text('Logout', style: TextStyle(color: Colors.red)),
+        contentPadding: EdgeInsets.zero,
+        onTap: _handleLogout,
+      ),
     );
   }
-}
+
+  Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Logout'),
+        content: Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          TextButton(
+            child: Text('Logout', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      await TokenHelper.clearData();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
+      );
+    }
+  }
 
   Widget _buildMenuItem(String title, IconData icon, Widget destinationWidget) {
     return ListTile(
@@ -495,8 +496,8 @@ Future<void> _handleLogout() async {
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       children: [
-        _buildStatCard(
-            'Active Police Officers', _connectedUsers.length.toString() , Icons.people, Colors.blue),
+        _buildStatCard('Active Police Officers',
+            _connectedUsers.length.toString(), Icons.people, Colors.blue),
         _buildStatCard('Active Routes', '0', Icons.map, Colors.purple),
         _buildStatCard('Alerts Today', '0', Icons.warning, Colors.red),
         _buildStatCard(
@@ -564,145 +565,156 @@ Future<void> _handleLogout() async {
         //     ),
         //   ),
         // ),
-         Container(
-        height: 300,
-        child: Stack(
-          children: [
-            GoogleMap(
-              onMapCreated: (controller) {
-                _mapController = controller;
-                // Center on all markers after a small delay
-                Future.delayed(Duration(milliseconds: 500), () {
-                  _centerMapOnMarkers();
-                });
-              },
-              initialCameraPosition: CameraPosition(
-                target: _center,
-                zoom: 14.0,
+        Container(
+          height: 300,
+          child: Stack(
+            children: [
+              GoogleMap(
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  // Center on all markers after a small delay
+                  Future.delayed(Duration(milliseconds: 500), () {
+                    _centerMapOnMarkers();
+                  });
+                },
+                initialCameraPosition: CameraPosition(
+                  target: _center,
+                  zoom: 14.0,
+                ),
+                markers: _connectedUsersMarkers.values.toSet(),
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
               ),
-              markers: _connectedUsersMarkers.values.toSet(),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-            ),
-            if (_loadingUsers)
-              Center(child: CircularProgressIndicator()),
-          ],
+              if (_loadingUsers) Center(child: CircularProgressIndicator()),
+            ],
+          ),
         ),
-      ),
-      SizedBox(height: 16),
-      _buildUsersListCard(),
+        SizedBox(height: 16),
+        _buildUsersListCard(),
         SizedBox(width: 16),
       ],
     );
   }
 
   Map<String, String> formatTimestamp(String timestamp) {
-  try {
-    // Extract just the date portion (before the first space)
-    String datePart = timestamp.split(' ').first;
-    
-    // Parse to DateTime object
-    DateTime dateTime = DateTime.parse(datePart);
-    
-    // Format the outputs
-    return {
-      'time': DateFormat('HH:mm').format(dateTime),
-      'date': DateFormat('dd/MM/yyyy').format(dateTime),
-    };
-  } catch (e) {
-    // Return default values if parsing fails
-    print('Error formatting timestamp: $e');
-    return {
-      'time': '00:00',
-      'date': '01 01 1970',
-    };
+    try {
+      // Extract just the date portion (before the first space)
+      String datePart = timestamp.split(' ').first;
+
+      // Parse to DateTime object
+      DateTime dateTime = DateTime.parse(datePart);
+
+      // Format the outputs
+      return {
+        'time': DateFormat('HH:mm').format(dateTime),
+        'date': DateFormat('dd/MM/yyyy').format(dateTime),
+      };
+    } catch (e) {
+      // Return default values if parsing fails
+      print('Error formatting timestamp: $e');
+      return {
+        'time': '00:00',
+        'date': '01 01 1970',
+      };
+    }
   }
-}
 
   Widget _buildUsersListCard() {
-  return Card(
-    elevation: 2,
-    child: Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Live Officers (${_connectedUsers.length})',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: Icon(Icons.refresh),
-                onPressed: _fetchAllUsers,
-                tooltip: "Refresh",
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Container(
-            height: 150,
-            child: _loadingUsers
-                ? Center(child: CircularProgressIndicator())
-                : _connectedUsers.isEmpty
-                    ? Center(child: Text('No officers currently connected'))
-                    : ListView.builder(
-                        itemCount: _connectedUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = _connectedUsers.values.elementAt(index);
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.blue[100],
-                              child: Icon(Icons.person, color: Colors.blue),
-                            ),
-                            title: Text(user['name'] ?? 'Officer'),
-                            subtitle: Text("${formatTimestamp(user["lastUpdate"])['time']} ${formatTimestamp(user["lastUpdate"])['date']}"?? 'Officer'),
-                            trailing: IconButton(
-                              icon: Icon(Icons.location_on),
-                              color: Colors.blue,
-                              onPressed: () {
-                                final marker = _connectedUsersMarkers[user['_id']];
-                                if (marker != null) {
-                                  _mapController.animateCamera(
-                                    CameraUpdate.newLatLngZoom(marker.position, 16),
-                                  );
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-          ),
-        ],
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Live Officers (${_connectedUsers.length})',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  onPressed: _fetchAllUsers,
+                  tooltip: "Refresh",
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Container(
+              height: 150,
+              child: _loadingUsers
+                  ? Center(child: CircularProgressIndicator())
+                  : _connectedUsers.isEmpty
+                      ? Center(child: Text('No officers currently connected'))
+                      : ListView.builder(
+                          itemCount: _connectedUsers.length,
+                          itemBuilder: (context, index) {
+                            final user =
+                                _connectedUsers.values.elementAt(index);
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.blue[100],
+                                child: Icon(Icons.person, color: Colors.blue),
+                              ),
+                              title: Text(user['name'] ?? 'Officer'),
+                              subtitle: Text(
+                                  "${formatTimestamp(user["lastUpdate"])['time']} ${formatTimestamp(user["lastUpdate"])['date']}" ??
+                                      'Officer'),
+                              trailing: IconButton(
+                                icon: Icon(Icons.location_on),
+                                color: Colors.blue,
+                                onPressed: () {
+                                  final marker =
+                                      _connectedUsersMarkers[user['_id']];
+                                  if (marker != null) {
+                                    _mapController.animateCamera(
+                                      CameraUpdate.newLatLngZoom(
+                                          marker.position, 16),
+                                    );
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _centerMapOnMarkers() async {
-  if (_allUsersMarkers.isEmpty) return;
+    if (_allUsersMarkers.isEmpty) return;
 
-  LatLngBounds bounds = _boundsFromMarkers(_allUsersMarkers.values.toSet());
-  _mapController.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
-}
-
-LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
-  double? minLat, maxLat, minLng, maxLng;
-  
-  for (var marker in markers) {
-    minLat = minLat == null ? marker.position.latitude : min(minLat, marker.position.latitude);
-    maxLat = maxLat == null ? marker.position.latitude : max(maxLat, marker.position.latitude);
-    minLng = minLng == null ? marker.position.longitude : min(minLng, marker.position.longitude);
-    maxLng = maxLng == null ? marker.position.longitude : max(maxLng, marker.position.longitude);
+    LatLngBounds bounds = _boundsFromMarkers(_allUsersMarkers.values.toSet());
+    _mapController.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
   }
-  
-  return LatLngBounds(
-    northeast: LatLng(maxLat!, maxLng!),
-    southwest: LatLng(minLat!, minLng!),
-  );
-}
 
+  LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
+    double? minLat, maxLat, minLng, maxLng;
 
+    for (var marker in markers) {
+      minLat = minLat == null
+          ? marker.position.latitude
+          : min(minLat, marker.position.latitude);
+      maxLat = maxLat == null
+          ? marker.position.latitude
+          : max(maxLat, marker.position.latitude);
+      minLng = minLng == null
+          ? marker.position.longitude
+          : min(minLng, marker.position.longitude);
+      maxLng = maxLng == null
+          ? marker.position.longitude
+          : max(maxLng, marker.position.longitude);
+    }
+
+    return LatLngBounds(
+      northeast: LatLng(maxLat!, maxLng!),
+      southwest: LatLng(minLat!, minLng!),
+    );
+  }
 
   Widget _buildOfficerItem(
       String badge, String name, String status, String route) {
@@ -869,10 +881,9 @@ LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
                                   builder: (context) => IncidentReportDetails(
                                     id: report["_id"].toString(),
                                     description: report["description"],
-                                    latitude: report["location"]["coordinates"]
-                                        [0]["latitude"],
-                                    longitude: report["location"]["coordinates"]
-                                        [0]["longitude"],
+                                    type: report["type"],
+                                    latitude: report["location"][0].toString(),
+                                    longitude: report["location"][1].toString(),
                                     imageUrls: report["images"],
                                     reportDate:
                                         _formatReportDate(report["createdAt"]),
@@ -986,7 +997,7 @@ LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
 
   String _formatReportDate(String dateString) {
     try {
-      final date = DateTime.parse(dateString);
+      final date = DateTime.parse(dateString).toLocal();
       return DateFormat('MMM d, h:mm a').format(date);
     } catch (e) {
       return '';
@@ -997,7 +1008,7 @@ LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
     String? token = await TokenHelper.getToken();
     try {
       final response = await http.get(
-        Uri.parse('https://patrollingappbackend.onrender.com/api/v1/report'),
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/report'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${token}'
@@ -1057,6 +1068,7 @@ LatLngBounds _boundsFromMarkers(Set<Marker> markers) {
 class IncidentReportDetails extends StatelessWidget {
   final String id;
   final String description;
+  final String type;
   final String latitude;
   final String longitude;
   final List<dynamic> imageUrls;
@@ -1068,6 +1080,7 @@ class IncidentReportDetails extends StatelessWidget {
     super.key,
     required this.id,
     required this.description,
+    required this.type,
     required this.latitude,
     required this.longitude,
     required this.imageUrls,
@@ -1076,229 +1089,184 @@ class IncidentReportDetails extends StatelessWidget {
     this.status,
   });
 
-Future<Uint8List> _generatePdf() async {
-  final pdf = pw.Document();
-  final theme = pw.ThemeData.withFont(
-    base: await PdfGoogleFonts.openSansRegular(),
-    bold: await PdfGoogleFonts.openSansBold(),
-  );
+  Future<Uint8List> _generatePdf() async {
+    final pdf = pw.Document();
+    final theme = pw.ThemeData.withFont(
+      base: await PdfGoogleFonts.openSansRegular(),
+      bold: await PdfGoogleFonts.openSansBold(),
+    );
 
-  // final File imageFile = File('');
-  
+    // final File imageFile = File('');
 
-  Future<Uint8List> loadAssetImage(String path) async {
-  final ByteData data = await rootBundle.load(path);
-  return data.buffer.asUint8List();
-}
-final Uint8List imageBytes = await loadAssetImage( 'assets/logos/up_police_logo.jpeg');
-
-final List<pw.ImageProvider> imageProviders = [];
-  for (var imageUrl in imageUrls) {
-    try {
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode == 200) {
-        imageProviders.add(pw.MemoryImage(response.bodyBytes));
-      }
-    } catch (e) {
-      debugPrint('Error loading image for PDF: $e');
-      // Add placeholder for failed images
-      imageProviders.add(pw.MemoryImage(Uint8List(0))); // Will be handled in display
+    Future<Uint8List> loadAssetImage(String path) async {
+      final ByteData data = await rootBundle.load(path);
+      return data.buffer.asUint8List();
     }
-  }
 
-  // Main content page
-  pdf.addPage(
-    pw.Page(
-      theme: theme,
-      margin: const pw.EdgeInsets.all(32),
-      build: (pw.Context context) {
-        return pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            // Header with logo (if you have one)
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Image(pw.MemoryImage(imageBytes), width: 100, height: 40),
-                pw.Text(
-                  'INCIDENT REPORT',
-                  style: pw.TextStyle(
-                    fontSize: 24,
-                    fontWeight: pw.FontWeight.bold,
+    final Uint8List imageBytes =
+        await loadAssetImage('assets/logos/up_police_logo.jpeg');
+    final Uint8List imageBytes2 =
+        await loadAssetImage('assets/logos/up_police_without_bg.png');
+
+    final List<pw.ImageProvider> imageProviders = [];
+    for (var imageUrl in imageUrls) {
+      try {
+        final response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          imageProviders.add(pw.MemoryImage(response.bodyBytes));
+        }
+      } catch (e) {
+        debugPrint('Error loading image for PDF: $e');
+        // Add placeholder for failed images
+        imageProviders
+            .add(pw.MemoryImage(Uint8List(0))); // Will be handled in display
+      }
+    }
+
+    // Main content page
+    pdf.addPage(
+      pw.Page(
+        theme: theme,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return pw.Stack(
+            children: [
+              // Centered watermark with low opacity
+              pw.Center(
+                child: pw.Opacity(
+                  opacity: 0.08, // Subtle watermark effect
+                  child: pw.Image(
+                    pw.MemoryImage(imageBytes2),
+                    width: 500,
+                    height: 300,
+                    fit: pw.BoxFit.contain,
                   ),
                 ),
-                // Add your logo here if needed
-                
-              ],
-            ),
-            pw.Divider(thickness: 2),
-            pw.SizedBox(height: 20),
-
-            // Incident Details Section
-            pw.Text(
-              'Incident Details',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-                decoration: pw.TextDecoration.underline,
               ),
-            ),
-            pw.SizedBox(height: 15),
-
-            // Description
-            _buildDetailSection('Description', description),
-            pw.SizedBox(height: 15),
-
-            // Location
-            pw.Text(
-              'Location:',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 5),
-            pw.Text('Latitude: $latitude'),
-            pw.Text('Longitude: $longitude'),
-            pw.SizedBox(height: 15),
-
-            // Report Date
-            _buildDetailSection('Report Date', reportDate ?? 'N/A'),
-            pw.SizedBox(height: 15),
-
-            // Status (if available)
-            if (status != null) _buildDetailSection('Status', status!),
-            pw.SizedBox(height: 25),
-
-            // Add small preview of first image if available
-            if (imageProviders.isNotEmpty) ...[
-              pw.Text(
-                'Incident Images',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                  decoration: pw.TextDecoration.underline,
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              pw.GridView(
-                crossAxisCount: 2, // 2 images per row
-                childAspectRatio: 3/4, // Width/Height ratio
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                children: imageProviders.map((provider) {
-                  return pw.Container(
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(width: 0.5),),
-                    child: provider is pw.MemoryImage && provider.bytes.isEmpty 
-                      ? pw.Center(
-                          child: pw.Text('Image failed to load',
-                            style: const pw.TextStyle(color: PdfColors.red)),
-                        )
-                      : pw.Image(
-                          provider,
-                          fit: pw.BoxFit.cover,
+              // Main page content overlays watermark
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Header with logo and type
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Image(pw.MemoryImage(imageBytes),
+                          width: 100, height: 40),
+                      pw.Text(
+                        type,
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
                         ),
-                  );
-                }).toList(),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                '* Images are scaled to fit while maintaining aspect ratio',
-                style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                      ),
+                    ],
+                  ),
+                  pw.Divider(thickness: 2),
+                  pw.SizedBox(height: 20),
+                  // Incident Details
+                  pw.Text(
+                    'Details',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      decoration: pw.TextDecoration.underline,
+                    ),
+                  ),
+                  pw.SizedBox(height: 15),
+                  _buildDetailSection('Description', description),
+                  pw.SizedBox(height: 15),
+                  pw.Text(
+                    'Location:',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
+                  pw.Text('Latitude: $latitude'),
+                  pw.Text('Longitude: $longitude'),
+                  pw.SizedBox(height: 15),
+                  _buildDetailSection('Report Date', reportDate ?? 'N/A'),
+                  pw.SizedBox(height: 15),
+                  if (status != null) _buildDetailSection('Status', status!),
+                  pw.SizedBox(height: 25),
+                  if (imageProviders.isNotEmpty) ...[
+                    pw.Text(
+                      'Related Images',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        decoration: pw.TextDecoration.underline,
+                      ),
+                    ),
+                    pw.SizedBox(height: 10),
+                    pw.GridView(
+                      crossAxisCount: 2,
+                      childAspectRatio: 3 / 4,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      children: imageProviders.map((provider) {
+                        return pw.Container(
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(width: 0.5),
+                          ),
+                          child: provider is pw.MemoryImage &&
+                                  provider.bytes.isEmpty
+                              ? pw.Center(
+                                  child: pw.Text(
+                                    'Image failed to load',
+                                    style: const pw.TextStyle(
+                                        color: PdfColors.red),
+                                  ),
+                                )
+                              : pw.Image(
+                                  provider,
+                                  fit: pw.BoxFit.cover,
+                                ),
+                        );
+                      }).toList(),
+                    ),
+                    pw.SizedBox(height: 10),
+                    pw.Text(
+                      '* Images are scaled to fit while maintaining aspect ratio',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontStyle: pw.FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
-          ],
-        );
-      },
-    ),
-  );
+          );
+        },
+      ),
+    );
 
-  // ******** adding image per page as full pages with proper sizing and metadata
-  // if (imageUrls.isNotEmpty) {
-  //   for (var i = 0; i < imageUrls.length; i++) {
-  //     try {
-  //       final response = await http.get(Uri.parse(imageUrls[i]));
-  //       if (response.statusCode == 200) {
-  //         final image = pw.MemoryImage(response.bodyBytes);
-
-  //         pdf.addPage(
-  //           pw.Page(
-  //             theme: theme,
-  //             margin: const pw.EdgeInsets.all(16),
-  //             build: (pw.Context context) {
-  //               return pw.Column(
-  //                 children: [
-  //                   pw.Text(
-  //                     'Incident Image ${i + 1}/${imageUrls.length}',
-  //                     style: pw.TextStyle(
-  //                       fontSize: 12,
-  //                       fontWeight: pw.FontWeight.bold,
-  //                     ),
-  //                   ),
-  //                   pw.SizedBox(height: 10),
-  //                   pw.Expanded(
-  //                     child: pw.Container(
-  //                       alignment: pw.Alignment.center,
-  //                       child: pw.Image(
-  //                         image,
-  //                         fit: pw.BoxFit.contain,
-  //                       ),
-  //                     ),
-  //                   ),
-  //                   pw.SizedBox(height: 10),
-  //                   pw.Text(
-  //                     'Image ${i + 1} - ${imageUrls[i]}',
-  //                     style: const pw.TextStyle(fontSize: 10),
-  //                   ),
-  //                 ],
-  //               );
-  //             },
-  //           ),
-  //         );
-  //       }
-  //     } catch (e) {
-  //       debugPrint('Error loading image for PDF: $e');
-  //       // Add placeholder for failed images
-  //       pdf.addPage(
-  //         pw.Page(
-  //           build: (pw.Context context) {
-  //             return pw.Center(
-  //               child: pw.Text(
-  //                 'Failed to load image ${i + 1}\nURL: ${imageUrls[i]}',
-  //                 textAlign: pw.TextAlign.center,
-  //               ),
-  //             );
-  //           },
-  //         ),
-  //       );
-  //     }
-  //   }
-  // }
-
-  return pdf.save();
-}
+    return pdf.save();
+  }
 
 // Helper function to build consistent detail sections
-pw.Widget _buildDetailSection(String title, String content) {
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(
-        '$title:',
-        style: pw.TextStyle(
-          fontSize: 14,
-          fontWeight: pw.FontWeight.bold,
+  pw.Widget _buildDetailSection(String title, String content) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '$title:',
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+          ),
         ),
-      ),
-      pw.SizedBox(height: 5),
-      pw.Text(
-        content,
-        style: const pw.TextStyle(fontSize: 12),
-      ),
-    ],
-  );
-}
+        pw.SizedBox(height: 5),
+        pw.Text(
+          content,
+          style: const pw.TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
 
   void _printReport() async {
     try {
@@ -1524,9 +1492,8 @@ pw.Widget _buildDetailSection(String title, String content) {
                 Expanded(
                     child: OutlinedButton(
                   onPressed: () {
-
-                  if (reviewStatus!) return;
-                  _handleStatusUpdate(context, id);
+                    if (reviewStatus!) return;
+                    _handleStatusUpdate(context, id);
                   },
                   style: OutlinedButton.styleFrom(
                       backgroundColor: reviewStatus == true
@@ -1548,14 +1515,11 @@ pw.Widget _buildDetailSection(String title, String content) {
   }
 
   void _handleStatusUpdate(BuildContext context, String reportId) {
-
-    
     // Show confirmation dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-            'Mark as Reviewed?'),
+        title: Text('Mark as Reviewed?'),
         content: Text('Are you sure you want to mark this report as Reviewed?'),
         actions: [
           TextButton(
@@ -1575,99 +1539,102 @@ pw.Widget _buildDetailSection(String title, String content) {
   }
 
   void _updateReportStatus(BuildContext context, String reportId) async {
-  BuildContext? loadingContext;
-
-  try {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        loadingContext = context;
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
-    String? token = await TokenHelper.getToken();
-    if (token == null) {
-      _dismissLoading(loadingContext);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Authentication failed'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final response = await http.patch(
-      Uri.parse('https://patrollingappbackend.onrender.com/api/v1/report/$reportId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'isReviewed': true, // Explicitly set to true since your endpoint seems to only mark as reviewed
-      }),
-    );
-
-    _dismissLoading(loadingContext);
-
-    // Handle empty response
-    if (response.body.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Report marked as reviewed successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context, true); // Return true to indicate success
-      return;
-    }
+    BuildContext? loadingContext;
 
     try {
-      final responseData = jsonDecode(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          loadingContext = context;
+          return const Center(child: CircularProgressIndicator());
+        },
+      );
+
+      String? token = await TokenHelper.getToken();
+      if (token == null) {
+        _dismissLoading(loadingContext);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(responseData['message'] ?? 'Report marked as reviewed successfully'),
+          const SnackBar(
+            content: Text('Authentication failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final response = await http.patch(
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/report/$reportId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'isReviewed':
+              true, // Explicitly set to true since your endpoint seems to only mark as reviewed
+        }),
+      );
+
+      _dismissLoading(loadingContext);
+
+      // Handle empty response
+      if (response.body.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report marked as reviewed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true); // Return true to indicate success
+        return;
+      }
+
+      try {
+        final responseData = jsonDecode(response.body);
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(responseData['message'] ??
+                  'Report marked as reviewed successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text(responseData['message'] ?? 'Failed to update status'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report status updated (malformed response)'),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(responseData['message'] ?? 'Failed to update status'),
-            backgroundColor: Colors.red,
-          ),
-        );
       }
     } catch (e) {
+      _dismissLoading(loadingContext);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Report status updated (malformed response)'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text('Network error: ${e.toString()}'),
+          backgroundColor: Colors.red,
         ),
       );
-      Navigator.pop(context, true);
     }
-  } catch (e) {
-    _dismissLoading(loadingContext);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Network error: ${e.toString()}'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
 
-void _dismissLoading(BuildContext? context) {
-  if (context != null && Navigator.canPop(context)) {
-    Navigator.pop(context);
+  void _dismissLoading(BuildContext? context) {
+    if (context != null && Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
   }
-}
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {

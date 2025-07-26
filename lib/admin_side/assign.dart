@@ -277,7 +277,7 @@ class _AdminPageState extends State<AdminPage> {
     try {
       final response = await http.post(
           Uri.parse(
-              'https://patrollingappbackend.onrender.com/api/v1/assignments'),
+              '${dotenv.env["BACKEND_URI"]}/assignments'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${token}'
