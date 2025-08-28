@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:hive/hive.dart';
-import 'package:mainapp/userProvider.dart';
+import 'package:mainapp/Providers/userProvider.dart';
 
 class NotificationsScreen extends StatefulWidget {
   @override

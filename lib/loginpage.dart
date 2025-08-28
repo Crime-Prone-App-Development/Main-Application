@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:mainapp/forgotpass.dart';
 import 'dart:convert';
 import './token_helper.dart';
-import 'userProvider.dart';
+import 'Providers/userProvider.dart';
 import 'package:provider/provider.dart';
 import './services/firebase_notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';

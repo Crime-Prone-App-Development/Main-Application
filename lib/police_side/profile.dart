@@ -8,7 +8,7 @@ import 'package:mainapp/loginpage.dart';
 import 'package:mainapp/token_helper.dart';
 
 import 'package:provider/provider.dart';
-import 'package:mainapp/userProvider.dart';
+import 'package:mainapp/Providers/userProvider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mainapp/resetpass.dart';
@@ -135,7 +135,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     radius: 40,
                     backgroundImage: _pickedImage != null
                         ? FileImage(_pickedImage!)
-                        : AssetImage('assets/default_avatar.png')
+                        : AssetImage('assets/admin.png')
                             as ImageProvider,
                   ),
                 ),

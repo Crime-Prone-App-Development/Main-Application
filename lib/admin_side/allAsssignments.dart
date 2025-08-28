@@ -46,31 +46,31 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
 
   void _filterAssignments() {
     _searchDebounce?.cancel();
-  
-  // Start new debounce
-  _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-    final query = _searchController.text.toLowerCase();
 
-    setState(() {
-      _currentSearchQuery = query;
+    // Start new debounce
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      final query = _searchController.text.toLowerCase();
 
-      if (query.isEmpty) {
-        // If search is empty, show all assignments
-        filteredPendingAssignments = List.from(pendingAssignments);
-        filteredReviewedAssignments = List.from(reviewedAssignments);
-      } else {
-        // Filter pending assignments
-        filteredPendingAssignments = pendingAssignments.where((assignment) {
-          return _assignmentMatchesQuery(assignment, query);
-        }).toList();
+      setState(() {
+        _currentSearchQuery = query;
 
-        // Filter reviewed assignments
-        filteredReviewedAssignments = reviewedAssignments.where((assignment) {
-          return _assignmentMatchesQuery(assignment, query);
-        }).toList();
-      }
+        if (query.isEmpty) {
+          // If search is empty, show all assignments
+          filteredPendingAssignments = List.from(pendingAssignments);
+          filteredReviewedAssignments = List.from(reviewedAssignments);
+        } else {
+          // Filter pending assignments
+          filteredPendingAssignments = pendingAssignments.where((assignment) {
+            return _assignmentMatchesQuery(assignment, query);
+          }).toList();
+
+          // Filter reviewed assignments
+          filteredReviewedAssignments = reviewedAssignments.where((assignment) {
+            return _assignmentMatchesQuery(assignment, query);
+          }).toList();
+        }
+      });
     });
-  }); 
   }
 
   bool _assignmentMatchesQuery(dynamic assignment, String query) {
@@ -112,7 +112,6 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     return false;
   }
 
-
   Future<void> _loadAssignments() async {
     setState(() {
       isLoading = true;
@@ -121,8 +120,7 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     try {
       String? token = await TokenHelper.getToken();
       final response = await http.get(
-        Uri.parse(
-            '${dotenv.env["BACKEND_URI"]}/assignments'),
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/assignments'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token'
@@ -177,8 +175,6 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
     }
   }
 
-
-
   void _navigateToAssignmentDetails(dynamic assignment) {
     // Make a deep copy of the assignment to prevent unintended modifications
     final assignmentCopy = json.decode(json.encode(assignment));
@@ -231,10 +227,12 @@ class _AssignmentsPageState extends State<AssignmentsPage> {
           centerTitle: true,
           elevation: 0,
           foregroundColor: Colors.white,
-          backgroundColor: Color.fromARGB(255, 67, 156, 234),
+          backgroundColor: Colors.blue[800],
           bottom: TabBar(
             indicatorColor: Colors.white,
             labelStyle: TextStyle(fontWeight: FontWeight.bold),
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(
                 icon: Icon(Icons.pending_actions, color: Colors.white),
@@ -488,7 +486,6 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
     // isReviewed = widget.assignment['status'] == 'reviewed';
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -524,8 +521,9 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
                         'End', _formatDateTime(widget.assignment['endsAt'])),
                     _buildDetailRow(
                         'Status',
-                        widget.assignment['imageData']
-                                .every((image) => image['verified'] == true || image != null)
+                        widget.assignment['imageData'].isNotEmpty &&
+                                widget.assignment['imageData'].every((image) =>
+                                    image != null && image['verified'] == true)
                             ? "Verified"
                             : "Not Verified"),
                   ],
@@ -603,199 +601,203 @@ class _AssignmentDetailsPageState extends State<AssignmentDetailsPage> {
 
 // New Image Verification Section
   Widget _buildImageVerificationSection() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildSectionTitle('Image Verification'),
-      SizedBox(height: 12),
-      ...widget.assignment['imageData'].map<Widget>((image) {
-        print(image);
-        return Card(
-          margin: EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(12),
-            child: Column(
-              children: [
-                // Make image clickable
-                GestureDetector(
-                  onTap: () {
-                    _showFullScreenImage(image['imageUrl']);
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      image['imageUrl'],
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          height: 200,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Image Verification'),
+        SizedBox(height: 12),
+        ...widget.assignment['imageData'].map<Widget>((image) {
+          print(image);
+          return Card(
+            margin: EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  // Make image clickable
+                  GestureDetector(
+                    onTap: () {
+                      _showFullScreenImage(image['imageUrl']);
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        image['imageUrl'],
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 200,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes !=
+                                        null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 200,
-                          color: Colors.grey[200],
-                          child: Center(
-                            child: Icon(Icons.broken_image, size: 50),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: Center(
+                              child: Icon(Icons.broken_image, size: 50),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 12),
-                // Image details section
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Uploaded by and verification status
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Uploaded by: ${image['officer']?['name'] ?? 'Unknown'}',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        image['verified'] == true
-                            ? Chip(
-                                label: Text('Verified'),
-                                backgroundColor: Colors.green[50],
-                                labelStyle: TextStyle(color: Colors.green),
-                                avatar: Icon(Icons.check_circle,
-                                    color: Colors.green, size: 18),
-                              )
-                            : ElevatedButton.icon(
-                                onPressed: () => _verifyImage(image['_id']),
-                                icon: Icon(Icons.verified, size: 18),
-                                label: Text('Verify'),
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                              )
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    // Timestamp
-                    if (image['createdAt'] != null)
+                  SizedBox(height: 12),
+                  // Image details section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Uploaded by and verification status
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(Icons.access_time, size: 16, color: Colors.grey),
-                          SizedBox(width: 4),
                           Text(
-                            _formatDateTime(image['createdAt']),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
+                            'Uploaded by: ${image['officer']?['name'] ?? 'Unknown'}',
+                            style: TextStyle(fontSize: 14),
                           ),
+                          image['verified'] == true
+                              ? Chip(
+                                  label: Text('Verified'),
+                                  backgroundColor: Colors.green[50],
+                                  labelStyle: TextStyle(color: Colors.green),
+                                  avatar: Icon(Icons.check_circle,
+                                      color: Colors.green, size: 18),
+                                )
+                              : ElevatedButton.icon(
+                                  onPressed: () => _verifyImage(image['_id']),
+                                  icon: Icon(Icons.verified, size: 18),
+                                  label: Text('Verify'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                )
                         ],
                       ),
-                    SizedBox(height: 8),
-                    // Location coordinates
-                    if (image['imgLat'] != null && image['imgLon'] != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.location_on, size: 16, color: Colors.grey),
-                              SizedBox(width: 4),
-                              Text(
-                                'Location:',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
+                      SizedBox(height: 8),
+                      // Timestamp
+                      if (image['createdAt'] != null)
+                        Row(
+                          children: [
+                            Icon(Icons.access_time,
+                                size: 16, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Text(
+                              _formatDateTime(image['createdAt']),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
                               ),
-                            ],
-                          ),
-                          SizedBox(height: 4),
-                          Row(
-                            children: [
-                              SizedBox(width: 20), // Indent
-                              Text(
-                                'Lat: ${image['imgLat']}, Lon: ${image['imgLon']}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              // Add button to view location on map
-                              InkWell(
-                                onTap: () {
-                                  _viewImageLocationOnMap(
-                                    double.parse(image['imgLat'].toString()),
-                                    double.parse(image['imgLon'].toString()),
-                                    image['officer']?['name'] ?? 'Image Location',
-                                  );
-                                },
-                                child: Text(
-                                  'View on map',
+                            ),
+                          ],
+                        ),
+                      SizedBox(height: 8),
+                      // Location coordinates
+                      if (image['imgLat'] != null && image['imgLon'] != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.location_on,
+                                    size: 16, color: Colors.grey),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Location:',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.blue,
-                                    decoration: TextDecoration.underline,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
+                              ],
+                            ),
+                            SizedBox(height: 4),
+                            Row(
+                              children: [
+                                SizedBox(width: 20), // Indent
+                                Text(
+                                  'Lat: ${image['imgLat']}, Lon: ${image['imgLon']}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                // Add button to view location on map
+                                InkWell(
+                                  onTap: () {
+                                    _viewImageLocationOnMap(
+                                      double.parse(image['imgLat'].toString()),
+                                      double.parse(image['imgLon'].toString()),
+                                      image['officer']?['name'] ??
+                                          'Image Location',
+                                    );
+                                  },
+                                  child: Text(
+                                    'View on map',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
-    ],
-  );
-}
+          );
+        }).toList(),
+      ],
+    );
+  }
 
 // Helper function to view image location on map
-void _viewImageLocationOnMap(double lat, double lng, String title) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => Scaffold(
-        appBar: AppBar(title: Text('Image Location')),
-        body: GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: LatLng(lat, lng),
-            zoom: 15,
-          ),
-          markers: {
-            Marker(
-              markerId: MarkerId('image_location'),
-              position: LatLng(lat, lng),
-              infoWindow: InfoWindow(title: title),
+  void _viewImageLocationOnMap(double lat, double lng, String title) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text('Image Location')),
+          body: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: LatLng(lat, lng),
+              zoom: 15,
             ),
-          },
+            markers: {
+              Marker(
+                markerId: MarkerId('image_location'),
+                position: LatLng(lat, lng),
+                infoWindow: InfoWindow(title: title),
+              ),
+            },
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
 // Add this new method to show full screen image
   void _showFullScreenImage(String imageUrl) {
@@ -846,8 +848,7 @@ void _viewImageLocationOnMap(double lat, double lng, String title) {
     try {
       String? token = await TokenHelper.getToken();
       final response = await http.patch(
-        Uri.parse(
-            '${dotenv.env["BACKEND_URI"]}/selfies/$imageId/verify'),
+        Uri.parse('${dotenv.env["BACKEND_URI"]}/selfies/$imageId/verify'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token'
@@ -961,11 +962,6 @@ void _viewImageLocationOnMap(double lat, double lng, String title) {
   String _formatDateTime(String? dateTime) {
     if (dateTime == null) return 'N/A';
     try {
-      print(dateTime);
-      print(DateTime.parse(dateTime));
-      print(DateTime.parse(dateTime).toLocal());
-
-
       final dt = DateTime.parse(dateTime).toLocal();
       return DateFormat('MMM dd, yyyy - hh:mm a').format(dt);
     } catch (e) {

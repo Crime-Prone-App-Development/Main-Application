@@ -38,9 +38,8 @@ class _ReportsPageState extends State<ReportsPage> {
     filteredReports = List.from(reports);
     _calculateStatistics();
 
-    if (widget.reports == null) {
       _fetchReports();
-    }
+    
 
     TokenHelper.getUserData().then((userData) {
       setState(() {
@@ -114,7 +113,7 @@ class _ReportsPageState extends State<ReportsPage> {
   String _formatReportDate(String dateString) {
     try {
       final date = DateTime.parse(dateString).toLocal();
-      return DateFormat('MMM d, h:mm a').format(date);
+      return DateFormat('y MMM d, h:mm a').format(date);
     } catch (e) {
       return '';
     }
@@ -191,6 +190,7 @@ class _ReportsPageState extends State<ReportsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reports'),
+        centerTitle: true,
         backgroundColor: Colors.blue[800],
         foregroundColor: Colors.white,
         actions: [

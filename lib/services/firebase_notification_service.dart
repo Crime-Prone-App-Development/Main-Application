@@ -43,8 +43,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       utcTime: startsAtUtc,
       taskName: 'Office Check-in',
       taskData: message.data);
-  await FirebaseNotificationService.sendText(
-      "Background: Hare Krishna Hare Krishna");
+  // await FirebaseNotificationService.sendText(
+  //     "Background: Hare Krishna Hare Krishna");
 
   // Show notification
   await FirebaseNotificationService.showLocalNotification(message);
@@ -96,7 +96,7 @@ class FirebaseNotificationService {
             utcTime: startsAtUtc,
             taskName: 'Office Check-in',
             taskData: message.data);
-        await sendText("Foreground: Hare Krishna Hare Krishna");
+        // await sendText("Foreground: Hare Krishna Hare Krishna");
         await saveNotificationToHive(message);
       });
 
@@ -116,11 +116,11 @@ class FirebaseNotificationService {
 
       // Get and save FCM token (if you need to update it)
       String? token = await _messaging.getToken();
-      print("FCM Token: $token");
+      // print("FCM Token: $token");
 
       // Listen for token refresh
       _messaging.onTokenRefresh.listen((String token) {
-        print("FCM Token refreshed: $token");
+        print("FCM Token refreshed");
         // You can send this updated token to your backend here
         // _sendTokenToBackend(token);
       });
@@ -174,38 +174,38 @@ class FirebaseNotificationService {
     }
   }
 
-  static Future<void> sendText(String text) async {
-    final client = HttpClient();
+  // static Future<void> sendText(String text) async {
+  //   final client = HttpClient();
 
-    try {
-      print("Attempting HTTP request...");
+  //   try {
+  //     print("Attempting HTTP request...");
 
-      // Use your machine's IP instead of localhost
-      final url =
-          "${dotenv.env["BACKEND_URI"]}/auth/check/${text ?? 'default'}";
-      // final url = "http://192.168.245.155:8080/api/v1/auth/check/${text ?? 'default'}";
+  //     // Use your machine's IP instead of localhost
+  //     final url =
+  //         "${dotenv.env["BACKEND_URI"]}/auth/check/${text ?? 'default'}";
+  //     // final url = "http://192.168.245.155:8080/api/v1/auth/check/${text ?? 'default'}";
 
-      // Create proper HTTP request
-      final request = await client.postUrl(Uri.parse(url));
-      request.headers.set('Content-Type', 'application/json');
-      request.write(jsonEncode({"message": "success ho gaya"}));
+  //     // Create proper HTTP request
+  //     final request = await client.postUrl(Uri.parse(url));
+  //     request.headers.set('Content-Type', 'application/json');
+  //     request.write(jsonEncode({"message": "success ho gaya"}));
 
-      // Get and process response
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
+  //     // Get and process response
+  //     final response = await request.close();
+  //     final responseBody = await response.transform(utf8.decoder).join();
 
-      if (response.statusCode == 200) {
-        print('Request successful: ${response.statusCode}');
-        print('Response: $responseBody');
-      } else {
-        print('Request failed: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('HTTP request error: $e');
-    } finally {
-      client.close(); // Always close client
-    }
-  }
+  //     if (response.statusCode == 200) {
+  //       print('Request successful: ${response.statusCode}');
+  //       print('Response: $responseBody');
+  //     } else {
+  //       print('Request failed: ${response.statusCode}');
+  //     }
+  //   } catch (e) {
+  //     print('HTTP request error: $e');
+  //   } finally {
+  //     client.close(); // Always close client
+  //   }
+  // }
 
   static Future<void> showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;

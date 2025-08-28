@@ -5,7 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mainapp/police_side/appbar.dart';
 import 'package:provider/provider.dart';
-import 'package:mainapp/userProvider.dart';
+import 'package:mainapp/Providers/userProvider.dart';
 class CheckpointsPage extends StatefulWidget {
   @override
   State<CheckpointsPage> createState() => _CheckpointsPageState();

@@ -15,7 +15,8 @@ import 'admin_side/home.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart';
-import './userProvider.dart';
+import 'Providers/userProvider.dart';
+import 'Providers/authProvider.dart';
 import './notifications_service.dart';
 import 'reportsProvider.dart';
 import 'package:hive/hive.dart';
@@ -47,140 +48,37 @@ void main() async {
   await Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
   await AlarmService.initialize();
 
-  runApp(MultiProvider(
-    providers: [
-      ChangeNotifierProvider(create: (_) => UserProvider()),
-    ],
-    child: AppLoader(),
-  ));
-}
+  // runApp(MultiProvider(
+  //   providers: [
+  //     ChangeNotifierProvider(create: (_) => UserProvider()),
+  //   ],
+  //   child: AppLoader(),
+  // ));
 
-Future<Position> _getCurrentLocation() async {
-  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    throw 'Location services are disabled';
-  }
-
-  LocationPermission permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      throw 'Location permissions are denied';
-    }
-  }
-
-  if (permission == LocationPermission.deniedForever) {
-    throw 'Location permissions are permanently denied';
-  }
-
-  return await Geolocator.getCurrentPosition();
-}
-
-Future<bool> isValidToken(token) async {
-  try {
-    final response = await http.get(
-        Uri.parse('${dotenv.env["BACKEND_URI"]}/auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${token}'
-        });
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      // final Map<String, dynamic> responseData = json.decode(response.body);
-      return true;
-    } else {
-      return false;
-    }
-  } catch (e) {
-    // Handle any errors that occur during the request
-    print("error verifying user: ${e}");
-    return false;
-  }
-}
-
-class AppLoader extends StatefulWidget {
-  @override
-  State<AppLoader> createState() => _AppLoaderState();
-}
-
-class _AppLoaderState extends State<AppLoader> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: FutureBuilder<List<String?>>(
-        future: TokenHelper.getUserData(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Scaffold(
-              body: Center(
-                child: CircleAvatar(
-                  backgroundImage:
-                      AssetImage('assets/logos/up_police_logo.jpeg'),
-                  radius: 60,
-                ),
-              ),
-            );
-          } else if (snapshot.hasError) {
-            return Scaffold(
-              body: Center(
-                child: Text("Error: \${snapshot.error}"),
-              ),
-            );
-          } else {
-            final List<String?>? userInfo = snapshot.data;
-            final String? token = userInfo!.isNotEmpty ? userInfo[0] : null;
-            final String? role = userInfo.length > 4 ? userInfo[4] : null;
-
-            if (token == null) {
-              return MyApp(initialRoute: '/role');
-            }
-
-            return FutureBuilder<bool>(
-              future: isValidToken(token),
-              builder: (context, tokenSnapshot) {
-                if (tokenSnapshot.connectionState == ConnectionState.waiting) {
-                  return Scaffold(
-                    body: Center(
-                      child: CircleAvatar(
-                        backgroundImage:
-                            AssetImage('assets/logos/up_police_logo.jpeg'),
-                        radius: 60,
-                      ),
-                    ),
-                  );
-                } else {
-                  final bool isValid = tokenSnapshot.data ?? false;
-                  return MyApp(
-                    initialRoute: isValid
-                        ? (role != 'ADMIN' ? '/home' : '/adminHome')
-                        : '/role',
-                  );
-                }
-              },
-            );
-          }
-        },
-      ),
-    );
-  }
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final String initialRoute;
-  MyApp({super.key, required this.initialRoute});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Smart Police',
-      initialRoute: initialRoute,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const AuthWrapper(),
       routes: {
         '/role': (context) => roleChange(),
         '/login': (context) => LoginPage(),
@@ -188,10 +86,168 @@ class MyApp extends StatelessWidget {
         '/home': (context) => homePage(),
         '/adminHome': (context) => adminHome(),
       },
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
     );
   }
 }
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthStatus();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.checkAuthStatus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    
+    if (authProvider.isLoading) {
+      return Scaffold(
+        body: Center(
+          child: CircleAvatar(
+            backgroundImage: AssetImage('assets/logos/up_police_logo.jpeg'),
+            radius: 60,
+          ),
+        ),
+      );
+    }
+
+    if (!authProvider.isAuthenticated) {
+      return roleChange();
+    }
+
+    return authProvider.userRole == 'ADMIN' ? adminHome() : homePage();
+  }
+}
+
+// Future<bool> isValidToken(token) async {
+//   try {
+//     final response = await http.get(
+//         Uri.parse('${dotenv.env["BACKEND_URI"]}/auth/me'),
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': 'Bearer ${token}'
+//         });
+
+//     if (response.statusCode == 200 || response.statusCode == 201) {
+//       // final Map<String, dynamic> responseData = json.decode(response.body);
+//       return true;
+//     } else {
+//       return false;
+//     }
+//   } catch (e) {
+//     // Handle any errors that occur during the request
+//     print("error verifying user: ${e}");
+//     return false;
+//   }
+// }
+
+// class AppLoader extends StatefulWidget {
+//   @override
+//   State<AppLoader> createState() => _AppLoaderState();
+// }
+
+// class _AppLoaderState extends State<AppLoader> {
+//   @override
+//   void initState() {
+//     super.initState();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       home: FutureBuilder<List<String?>>(
+//         future: TokenHelper.getUserData(),
+//         builder: (context, snapshot) {
+//           if (snapshot.connectionState == ConnectionState.waiting) {
+//             return Scaffold(
+//               body: Center(
+//                 child: CircleAvatar(
+//                   backgroundImage:
+//                       AssetImage('assets/logos/up_police_logo.jpeg'),
+//                   radius: 60,
+//                 ),
+//               ),
+//             );
+//           } else if (snapshot.hasError) {
+//             return Scaffold(
+//               body: Center(
+//                 child: Text("Error: \${snapshot.error}"),
+//               ),
+//             );
+//           } else {
+//             final List<String?>? userInfo = snapshot.data;
+//             final String? token = userInfo!.isNotEmpty ? userInfo[0] : null;
+//             final String? role = userInfo.length > 4 ? userInfo[4] : null;
+
+//             if (token == null) {
+//               return MyApp(initialRoute: '/role');
+//             }
+
+//             return FutureBuilder<bool>(
+//               future: isValidToken(token),
+//               builder: (context, tokenSnapshot) {
+//                 if (tokenSnapshot.connectionState == ConnectionState.waiting) {
+//                   return Scaffold(
+//                     body: Center(
+//                       child: CircleAvatar(
+//                         backgroundImage:
+//                             AssetImage('assets/logos/up_police_logo.jpeg'),
+//                         radius: 60,
+//                       ),
+//                     ),
+//                   );
+//                 } else {
+//                   final bool isValid = tokenSnapshot.data ?? false;
+//                   return MyApp(
+//                     initialRoute: isValid
+//                         ? (role != 'ADMIN' ? '/home' : '/adminHome')
+//                         : '/role',
+//                   );
+//                 }
+//               },
+//             );
+//           }
+//         },
+//       ),
+//     );
+//   }
+// }
+
+// class MyApp extends StatelessWidget {
+//   final String initialRoute;
+//   MyApp({super.key, required this.initialRoute});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       title: 'Smart Police',
+//       initialRoute: initialRoute,
+//       routes: {
+//         '/role': (context) => roleChange(),
+//         '/login': (context) => LoginPage(),
+//         '/register': (context) => RegisterPage(),
+//         '/home': (context) => homePage(),
+//         '/adminHome': (context) => adminHome(),
+//       },
+//       theme: ThemeData(
+//         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+//         useMaterial3: true,
+//       ),
+//     );
+//   }
+// }

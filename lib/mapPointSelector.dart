@@ -15,6 +15,7 @@ class _MapPointSelectorState extends State<MapPointSelector> {
   Marker? selectedMarker;
   final TextEditingController searchController = TextEditingController();
   final places = gmaps.GoogleMapsPlaces(apiKey: dotenv.env["MAPS_API_KEY"] ?? "");
+  
 
   Set<Marker> markers = {};
   List<LatLng> selectedPoints = [];
@@ -51,7 +52,7 @@ class _MapPointSelectorState extends State<MapPointSelector> {
                 hintText: 'Search location...',
                 suffixIcon: IconButton(
                   icon: Icon(Icons.search),
-                  onPressed: _searchLocation,
+                  onPressed:_searchLocation,
                 ),
               ),
               onSubmitted: (_) => _searchLocation(),
@@ -60,7 +61,7 @@ class _MapPointSelectorState extends State<MapPointSelector> {
           Expanded(
             child: GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: LatLng(37.42796133580664, -122.085749655962),
+                target: LatLng(25.1338702361743278, 82.56418537348509),
                 zoom: 14,
               ),
               onMapCreated: (controller) {
@@ -97,25 +98,52 @@ class _MapPointSelectorState extends State<MapPointSelector> {
   }
 
   Future<void> _searchLocation() async {
-    if (searchController.text.isEmpty) return;
+  try {
+    if (searchController.text.isEmpty) {
+      print('Search text is empty');
+      return;
+    }
+    
+    print('Searching for: ${searchController.text}');
     
     final response = await places.searchByText(searchController.text);
-    if (response.results.isNotEmpty) {
-      final location = response.results.first.geometry!.location;
-      final latLng = LatLng(location.lat, location.lng);
-      
-      setState(() {
-        selectedPoint = latLng;
-        selectedMarker = Marker(
-          markerId: MarkerId('selected_point'),
-          position: latLng,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        );
-      });
-      
-      mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 14));
+    
+    if (response.results.isEmpty) {
+      print('No results found');
+      return;
     }
+    
+    final firstResult = response.results.first;
+    if (firstResult.geometry?.location == null) {
+      print('First result has no geometry');
+      return;
+    }
+    
+    final location = firstResult.geometry!.location;
+    final latLng = LatLng(location.lat, location.lng);
+    
+    print('Found location: $latLng');
+    
+    setState(() {
+      selectedPoint = latLng;
+      selectedMarker = Marker(
+        markerId: const MarkerId('selected_point'),
+        position: latLng,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      );
+    });
+    
+    if (mapController != null) {
+      await mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(latLng, 14),
+      );
+    } else {
+      print('Map controller is null');
+    }
+  } catch (e) {
+    print('Error in _searchLocation: $e');
   }
+}
 
   void _addMarker(LatLng position) {
     final String markerIdVal = 'marker_$markerCounter';

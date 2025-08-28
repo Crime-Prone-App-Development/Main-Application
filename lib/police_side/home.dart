@@ -22,7 +22,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 
-import '../userProvider.dart';
+import '../Providers/userProvider.dart';
 // import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
@@ -96,10 +96,10 @@ class _homePageState extends State<homePage> {
                         showBackgroundLocationIndicator: false,
                       ))
             .listen((event) async {
-          // setState(() {
-          //   currentLocation = event;
-          //   // print(currentLocation);
-          // });
+            setState(() {
+              currentLocation = event;
+              // print(currentLocation);
+            });
         });
       },
     );
@@ -132,7 +132,7 @@ class _homePageState extends State<homePage> {
       print(msg);
     });
 
-    Timer.periodic(Duration(seconds: 10), (timer) async {
+    Timer.periodic(Duration(seconds: 5), (timer) async {
       startListeningLocation();
       // Send location data to the server using Socket.IO
       socket?.emit('locationUpdate', {

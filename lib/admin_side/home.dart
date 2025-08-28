@@ -2,9 +2,11 @@ import 'dart:ffi' as ffi;
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:mainapp/admin_side/DeleteUserPage.dart';
 import 'package:mainapp/admin_side/alert.dart';
 import 'package:mainapp/admin_side/allAsssignments.dart';
 import 'package:mainapp/admin_side/checkpoints.dart';
+import 'package:mainapp/admin_side/DataExportPage.dart';
 import 'package:mainapp/admin_side/patrolroutes.dart';
 import 'package:mainapp/admin_side/reports.dart';
 import 'package:mainapp/admin_side/route_map_page.dart';
@@ -67,40 +69,7 @@ class _adminHomeState extends State<adminHome> {
   final double _sidebarWidth = 230.0;
   List<dynamic> allReports = [];
   bool reportsLoaded = false;
-  final List<PatrolRoute> _routes = [
-    PatrolRoute(
-      position: LatLng(26.511639, 80.230954),
-      id: 1,
-      name: 'Main Entrance',
-      guards: ['John Doe', 'Jane Smith'],
-      isActive: true,
-      lastUpdated: '10/15/23',
-    ),
-    PatrolRoute(
-      position: LatLng(26.511639, 80.230954),
-      id: 2,
-      name: 'Parking Lot',
-      guards: ['Mike Johnson'],
-      isActive: true,
-      lastUpdated: '10/14/23',
-    ),
-    PatrolRoute(
-      position: LatLng(26.511639, 80.230954),
-      id: 3,
-      name: 'Warehouse Area',
-      guards: ['Sarah Connor'],
-      isActive: false,
-      lastUpdated: '10/10/23',
-    ),
-    PatrolRoute(
-      position: LatLng(26.511639, 80.230954),
-      id: 4,
-      name: 'Front Gate',
-      guards: ['John Doe'],
-      isActive: true,
-      lastUpdated: '10/12/23',
-    ),
-  ];
+
 
   Future<void> _connectToSocket() async {
     String? token = await TokenHelper.getToken();
@@ -379,7 +348,7 @@ class _adminHomeState extends State<adminHome> {
                 onPressed: () {},
               ),
               SizedBox(width: 10),
-              CircleAvatar(backgroundImage: AssetImage('assets/profile.png')),
+              CircleAvatar(backgroundImage: AssetImage('assets/admin.png')),
             ],
           )
         ],
@@ -399,14 +368,16 @@ class _adminHomeState extends State<adminHome> {
               children: [
                 _buildMenuItem('Dashboard', Icons.dashboard, adminHome()),
                 _buildMenuItem(
-                    'Assign Police Officers', Icons.people, AdminApp()),
+                    'Assign Police Officers', Icons.people, AdminPage()),
                 _buildMenuItem('Reports', Icons.assignment,
                     ReportsPage(reports: allReports)),
                 _buildMenuItem("Assignments", Icons.assignment_ind_outlined,
                     AssignmentsPage()),
+                _buildMenuItem(
+                    'Manage Users', Icons.person, DeleteUserPage()),
                 _buildMenuItem('Change Password', Icons.security, ResetPassword(requireOldPassword: true,)),
-                // _buildMenuItem(
-                //     'test', Icons.assignment, RouteMapPage()),
+                _buildMenuItem('Export Report', Icons.file_download, DataExportPage()),
+                
               ],
             ),
           ),
@@ -998,7 +969,7 @@ class _adminHomeState extends State<adminHome> {
   String _formatReportDate(String dateString) {
     try {
       final date = DateTime.parse(dateString).toLocal();
-      return DateFormat('MMM d, h:mm a').format(date);
+      return DateFormat('y MMM d, h:mm a').format(date);
     } catch (e) {
       return '';
     }
@@ -1065,7 +1036,7 @@ class _adminHomeState extends State<adminHome> {
 //   }
 // }
 
-class IncidentReportDetails extends StatelessWidget {
+class IncidentReportDetails extends StatefulWidget {
   final String id;
   final String description;
   final String type;
@@ -1089,6 +1060,21 @@ class IncidentReportDetails extends StatelessWidget {
     this.status,
   });
 
+  @override
+  State<IncidentReportDetails> createState() => _IncidentReportDetailsState();
+}
+
+class _IncidentReportDetailsState extends State<IncidentReportDetails> {
+
+  bool _isReviewed = false ;
+
+
+  @override
+  void initState() {
+    super.initState();
+    _isReviewed = widget.reviewStatus ?? false;
+  }
+
   Future<Uint8List> _generatePdf() async {
     final pdf = pw.Document();
     final theme = pw.ThemeData.withFont(
@@ -1109,7 +1095,7 @@ class IncidentReportDetails extends StatelessWidget {
         await loadAssetImage('assets/logos/up_police_without_bg.png');
 
     final List<pw.ImageProvider> imageProviders = [];
-    for (var imageUrl in imageUrls) {
+    for (var imageUrl in widget.imageUrls) {
       try {
         final response = await http.get(Uri.parse(imageUrl));
         if (response.statusCode == 200) {
@@ -1154,7 +1140,7 @@ class IncidentReportDetails extends StatelessWidget {
                       pw.Image(pw.MemoryImage(imageBytes),
                           width: 100, height: 40),
                       pw.Text(
-                        type,
+                        widget.type,
                         style: pw.TextStyle(
                           fontSize: 24,
                           fontWeight: pw.FontWeight.bold,
@@ -1174,7 +1160,7 @@ class IncidentReportDetails extends StatelessWidget {
                     ),
                   ),
                   pw.SizedBox(height: 15),
-                  _buildDetailSection('Description', description),
+                  _buildDetailSection('Description', widget.description),
                   pw.SizedBox(height: 15),
                   pw.Text(
                     'Location:',
@@ -1184,12 +1170,12 @@ class IncidentReportDetails extends StatelessWidget {
                     ),
                   ),
                   pw.SizedBox(height: 5),
-                  pw.Text('Latitude: $latitude'),
-                  pw.Text('Longitude: $longitude'),
+                  pw.Text('Latitude: ${widget.latitude}'),
+                  pw.Text('Longitude: ${widget.longitude}'),
                   pw.SizedBox(height: 15),
-                  _buildDetailSection('Report Date', reportDate ?? 'N/A'),
+                  _buildDetailSection('Report Date', widget.reportDate ?? 'N/A'),
                   pw.SizedBox(height: 15),
-                  if (status != null) _buildDetailSection('Status', status!),
+                  if (widget.status != null) _buildDetailSection('Status', widget.status!),
                   pw.SizedBox(height: 25),
                   if (imageProviders.isNotEmpty) ...[
                     pw.Text(
@@ -1280,8 +1266,8 @@ class IncidentReportDetails extends StatelessWidget {
 
   void _viewOnMap(BuildContext context) {
     try {
-      final lat = double.parse(latitude);
-      final lng = double.parse(longitude);
+      final lat = double.parse(widget.latitude);
+      final lng = double.parse(widget.longitude);
 
       Navigator.push(
         context,
@@ -1289,7 +1275,7 @@ class IncidentReportDetails extends StatelessWidget {
           builder: (context) => MapScreen(
             latitude: lat,
             longitude: lng,
-            description: description,
+            description: widget.description,
           ),
         ),
       );
@@ -1319,31 +1305,31 @@ class IncidentReportDetails extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status and date row
-            if (status != null || reportDate != null)
+            if (widget.status != null || widget.reportDate != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (status != null)
+                    if (widget.status != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12.0, vertical: 6.0),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(status!),
+                          color: _getStatusColor(widget.status!),
                           borderRadius: BorderRadius.circular(20.0),
                         ),
                         child: Text(
-                          status!,
+                          widget.status!,
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    if (reportDate != null)
+                    if (widget.reportDate != null)
                       Text(
-                        reportDate!,
+                        widget.reportDate!,
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontStyle: FontStyle.italic,
@@ -1373,7 +1359,7 @@ class IncidentReportDetails extends StatelessWidget {
                       children: [
                         const Icon(Icons.location_on, size: 16),
                         const SizedBox(width: 8),
-                        Text('Latitude: $latitude'),
+                        Text('Latitude: ${widget.latitude}'),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -1381,7 +1367,7 @@ class IncidentReportDetails extends StatelessWidget {
                       children: [
                         const Icon(Icons.location_on, size: 16),
                         const SizedBox(width: 8),
-                        Text('Longitude: $longitude'),
+                        Text('Longitude: ${widget.longitude}'),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -1419,7 +1405,7 @@ class IncidentReportDetails extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(description),
+                    Text(widget.description),
                   ],
                 ),
               ),
@@ -1443,8 +1429,8 @@ class IncidentReportDetails extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    if (imageUrls.isEmpty) const Text('No images attached'),
-                    if (imageUrls.isNotEmpty)
+                    if (widget.imageUrls.isEmpty) const Text('No images attached'),
+                    if (widget.imageUrls.isNotEmpty)
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -1455,16 +1441,16 @@ class IncidentReportDetails extends StatelessWidget {
                           mainAxisSpacing: 8.0,
                           childAspectRatio: 1.0,
                         ),
-                        itemCount: imageUrls.length,
+                        itemCount: widget.imageUrls.length,
                         itemBuilder: (context, index) {
                           return GestureDetector(
                             onTap: () {
-                              _showFullScreenImage(context, imageUrls[index]);
+                              _showFullScreenImage(context, widget.imageUrls[index]);
                             },
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: CachedNetworkImage(
-                                imageUrl: imageUrls[index],
+                                imageUrl: widget.imageUrls[index],
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(
                                   color: Colors.grey[200],
@@ -1492,17 +1478,17 @@ class IncidentReportDetails extends StatelessWidget {
                 Expanded(
                     child: OutlinedButton(
                   onPressed: () {
-                    if (reviewStatus!) return;
-                    _handleStatusUpdate(context, id);
+                    if (_isReviewed!) return;
+                    _handleStatusUpdate(context, widget.id);
                   },
                   style: OutlinedButton.styleFrom(
-                      backgroundColor: reviewStatus == true
+                      backgroundColor: widget.reviewStatus == true
                           ? Colors.orange
                           : const Color(0xff118E13),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: const BorderSide(color: Color(0xff118E13))),
                   child: Text(
-                    reviewStatus == true ? 'Reviewed' : 'Mark as Reviewed',
+                    _isReviewed == true ? 'Reviewed' : 'Mark as Reviewed',
                     style: TextStyle(color: Colors.white),
                   ),
                 )),
@@ -1593,6 +1579,9 @@ class IncidentReportDetails extends StatelessWidget {
       try {
         final responseData = jsonDecode(response.body);
         if (response.statusCode == 200 || response.statusCode == 201) {
+          setState(() {
+            _isReviewed = true;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(responseData['message'] ??

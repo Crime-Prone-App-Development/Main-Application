@@ -11,21 +11,23 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 
-void main() {
-  runApp(AdminApp());
-}
+// void main() {
+//   runApp(AdminApp());
+// }
 
-class AdminApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: AdminPage(),
-    );
-  }
-}
+// class AdminApp extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       home: AdminPage(),
+//     );
+//   }
+// }
 
 class AdminPage extends StatefulWidget {
+  const AdminPage({super.key});
+
   @override
   _AdminPageState createState() => _AdminPageState();
 }
@@ -411,7 +413,7 @@ class _AdminPageState extends State<AdminPage> {
         centerTitle: true,
         elevation: 0,
         foregroundColor: Colors.white,
-        backgroundColor: const Color.fromARGB(255, 1, 32, 96),
+        backgroundColor: Colors.blue[800],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(20),

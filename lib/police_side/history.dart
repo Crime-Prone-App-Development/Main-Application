@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:mainapp/userProvider.dart';
+import 'package:mainapp/Providers/userProvider.dart';
 import 'package:mainapp/reportsProvider.dart';
 
 class HistoryPage extends StatefulWidget {
